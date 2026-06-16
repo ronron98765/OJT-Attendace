@@ -1,5 +1,5 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbza0kc1vlBbJE0aYW6DUNtkfNLr6vi-KLAa_yJ8NhrKHfivNCc2h3cf-Yq68YQlR8aV/exec";
-const ADMIN_PASSWORD = 'APOO26JM';
+const API_URL = 'https://script.google.com/macros/s/AKfycbza0kc1vlBbJE0aYW6DUNtkfNLr6vi-KLAa_yJ8NhrKHfivNCc2h3cf-Yq68YQlR8aV/exec';
+const ADMIN_PASSWORD = 'admin123';
 
 let interns = [];
 let logs = [];
@@ -245,3 +245,14 @@ function makeDtrHtml(intern,ym){
 function printDtr(){ renderDtrPreview(); if($('dtrPreviewWrap').style.display==='none'){ showToast('Select intern and month first.','error'); return; } window.print(); }
 
 function showToast(msg,type='success'){ const t=$('toast'); $('toastMsg').textContent=msg; $('toastIcon').textContent=type==='success'?'✓':'!'; t.className='toast '+type+' show'; setTimeout(()=>t.classList.remove('show'),3000); }
+
+
+// Make functions available to HTML onclick handlers
+Object.assign(window, {
+  enterAsOJT, openAdminLogin, closeAdminLogin, submitAdminLogin, signOut, navigate,
+  loadAllData, lookupIntern, confirmCheckin, clearCheckin,
+  openAddModal, closeAddModal, saveIntern, editIntern, deleteIntern, openProfile,
+  renderInternTable, renderLogTable, clearTodayLogs,
+  openAddTaskModal, closeAddTaskModal, saveTask, editTask, deleteTask, setTaskStatus,
+  calShift, calGoToday, selectCalendarDay, renderDtrPreview, printDtr
+});
