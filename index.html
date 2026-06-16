@@ -718,7 +718,7 @@ tr:hover td{background:var(--surface2);}
             <div class="form-group"><label class="form-label">Month & Year *</label>
               <input type="month" class="form-input" id="dtrMonth" onchange="renderDtrPreview()" /></div>
             <div class="form-group"><label class="form-label">In-Charge Name</label>
-              <input type="text" class="form-input" id="dtrInCharge" value="HON. JOETERRY A. UY" oninput="renderDtrPreview()" /></div>
+              <input type="text" class="form-input" id="dtrInCharge" value="JUN MIER C. SAWITAN" oninput="renderDtrPreview()" /></div>
             <div class="form-group"><label class="form-label">Official Arrival</label>
               <input type="text" class="form-input" id="dtrOfficialArrival" value="8:00 AM" oninput="renderDtrPreview()" /></div>
             <div class="form-group"><label class="form-label">Official Departure</label>
@@ -1453,7 +1453,7 @@ function buildDtrHTML(intern,year,month,inCharge,oArr,oDep,sat){
       <div class="dtr-cert">I certify on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from office.</div>
       <div style="margin-bottom:20px"><div style="border-top:1px solid #000;margin-top:20px;font-size:9px;text-align:center;padding-top:2px">(Signature)</div></div>
       <div class="dtr-verified">VERIFIED as to the prescribed office hours:</div>
-      <div class="dtr-sig-block"><div class="dtr-sig-name">${inCharge.toUpperCase()}</div><div class="dtr-sig-label">In Charge</div></div>
+      <div class="dtr-sig-block"><div class="dtr-sig-name">${inCharge.toUpperCase()}</div><div class="dtr-sig-label">OJT Coordinator</div></div>
     </div>
   </div>`;
   return `<div class="dtr-wrap"><div class="dtr-pair">${s}${s}</div></div>`;
