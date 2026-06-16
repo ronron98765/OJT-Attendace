@@ -18,7 +18,7 @@ const SHEETS = {
 
 const HEADERS = {
   Interns: ['id','name','school','birthdate','email','course','start','end','hours','notes','photo'],
-  Logs: ['id','internId','name','school','email','date','timestamp','status'],
+  Logs: ['id','internId','name','school','email','date','timestamp','status','attendanceType','latitude','longitude','accuracy','mapUrl'],
   Tasks: ['id','title','desc','priority','status','assigned','date']
 };
 

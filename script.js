@@ -23,11 +23,12 @@ const SIDEBAR_ADMIN = `
   <div class="nav-item" onclick="navigate('dashboard')">▦ Dashboard</div>
   <div class="nav-item" onclick="navigate('interns')">👥 Interns</div>
   <div class="nav-item" onclick="navigate('attendance')">🕒 Attendance Log</div>
+  <div class="nav-item" onclick="navigate('map')">🗺 Map Dashboard</div>
   <div class="nav-item" onclick="navigate('tasks')">☑ Activity Board</div>
   <div class="nav-label">Reports</div>
   <div class="nav-item" onclick="navigate('calendar')">📅 Calendar</div>
   <div class="nav-item" onclick="navigate('dtr')">🖨 Print DTR</div>`;
-const PAGE_TITLES = {checkin:'Check In & Tasks',dashboard:'Dashboard',interns:'Interns',profile:'Intern Profile',attendance:'Attendance Log',tasks:'Activity Board',calendar:'Calendar',dtr:'Print DTR'};
+const PAGE_TITLES = {checkin:'Check In & Tasks',dashboard:'Dashboard',interns:'Interns',profile:'Intern Profile',attendance:'Attendance Log',tasks:'Activity Board',calendar:'Calendar',dtr:'Print DTR',map:'Map Dashboard'};
 
 function $(id){ return document.getElementById(id); }
 function uid(){ return Math.random().toString(36).slice(2,11); }
@@ -177,6 +178,7 @@ function navigate(page){
   if(page==='dashboard') renderDashboard();
   if(page==='interns') renderInternTable();
   if(page==='attendance'){ if(!$('logDate').value) $('logDate').value=today(); renderLogTable(); }
+  if(page==='map') renderMapDashboard();
   if(page==='tasks') renderTasks();
   if(page==='calendar') renderCalendar();
   if(page==='dtr'){ populateDtrSelect(); if(!$('dtrMonth').value) $('dtrMonth').value=today().slice(0,7); renderDtrPreview(); }
@@ -190,21 +192,47 @@ function lookupIntern(){
   foundIntern = interns.find(i => String(i.id).toUpperCase() === val);
   if(!foundIntern){ $('notFoundMsg').classList.add('visible'); return; }
   const now = new Date(), todayStr = today();
-  const already = logs.find(l => l.internId === foundIntern.id && l.date === todayStr);
   $('internAvatar').innerHTML = foundIntern.photo ? `<img src="${foundIntern.photo}" alt="${escapeHtml(foundIntern.name)} photo">` : escapeHtml(foundIntern.name.charAt(0).toUpperCase());
   $('internName').textContent = foundIntern.name; $('internIdDisplay').textContent = 'ID: ' + foundIntern.id;
   $('internSchool').textContent = foundIntern.school; $('internEmail').textContent = foundIntern.email;
   $('internTime').textContent = formatTime(now.toISOString()); $('internDate').textContent = formatDate(todayStr);
-  if(already){ $('confirmBtn').style.display='none'; $('alreadyBadge').style.display='inline-flex'; $('alreadyBadge').textContent = `Already checked in at ${formatTime(already.timestamp)}`; }
-  else { $('confirmBtn').style.display=''; $('alreadyBadge').style.display='none'; }
+  renderTodayAttendanceSummary();
   $('internCard').classList.add('visible'); renderOjtTasks(foundIntern); $('ojtTasksSection').style.display='block';
 }
-async function confirmCheckin(){
-  if(!foundIntern) return;
-  const newLog = {id:uid(),internId:foundIntern.id,name:foundIntern.name,school:foundIntern.school,email:foundIntern.email,date:today(),timestamp:new Date().toISOString(),status:'present'};
-  try{ await api('addLog',{log:newLog}); logs.push(newLog); showToast('Check-in confirmed for '+foundIntern.name,'success'); lookupIntern(); }
+function attendanceLabel(type){
+  return ({morning_in:'Morning Time In',morning_out:'Morning Time Out',afternoon_in:'Afternoon Time In',afternoon_out:'Afternoon Time Out'})[type] || 'Attendance';
+}
+function getLocation(){
+  return new Promise(resolve => {
+    if(!navigator.geolocation){ resolve({latitude:'',longitude:'',accuracy:''}); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({latitude:String(pos.coords.latitude), longitude:String(pos.coords.longitude), accuracy:String(Math.round(pos.coords.accuracy || 0))}),
+      () => resolve({latitude:'',longitude:'',accuracy:''}),
+      {enableHighAccuracy:true, timeout:12000, maximumAge:0}
+    );
+  });
+}
+function renderTodayAttendanceSummary(){
+  const box = $('todayAttendanceSummary'); if(!box || !foundIntern) return;
+  const todayLogs = logs.filter(l => l.internId === foundIntern.id && l.date === today());
+  const types = ['morning_in','morning_out','afternoon_in','afternoon_out'];
+  box.innerHTML = types.map(type => {
+    const log = todayLogs.find(l => l.attendanceType === type);
+    const loc = log && log.latitude && log.longitude ? `<a href="https://www.google.com/maps?q=${log.latitude},${log.longitude}" target="_blank">View map</a>` : 'No location';
+    return `<div class="attendance-pill"><strong>${attendanceLabel(type)}</strong><span>${log ? formatTime(log.timestamp) : 'Not yet'}</span><small>${log ? loc : ''}</small></div>`;
+  }).join('');
+}
+async function recordAttendance(type){
+  if(!foundIntern){ showToast('Enter your Intern ID first.','error'); return; }
+  const duplicate = logs.find(l => l.internId === foundIntern.id && l.date === today() && l.attendanceType === type);
+  if(duplicate && !confirm(attendanceLabel(type) + ' already exists today. Save another record?')) return;
+  showToast('Getting location and saving attendance...','success');
+  const loc = await getLocation();
+  const newLog = {id:uid(),internId:foundIntern.id,name:foundIntern.name,school:foundIntern.school,email:foundIntern.email,date:today(),timestamp:new Date().toISOString(),status:'present',attendanceType:type,latitude:loc.latitude,longitude:loc.longitude,accuracy:loc.accuracy,mapUrl:loc.latitude && loc.longitude ? `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}` : ''};
+  try{ await api('addLog',{log:newLog}); logs.push(newLog); showToast(attendanceLabel(type)+' saved for '+foundIntern.name,'success'); renderTodayAttendanceSummary(); renderCurrentPage(); }
   catch(err){ showToast(err.message,'error'); }
 }
+async function confirmCheckin(){ return recordAttendance('morning_in'); }
 function clearCheckin(){ $('internIdInput').value=''; $('internCard').classList.remove('visible'); $('notFoundMsg').classList.remove('visible'); $('ojtTasksSection').style.display='none'; foundIntern=null; }
 function renderOjtTasks(intern){
   const myName = String(intern.name).toLowerCase(), myId = String(intern.id).toLowerCase();
@@ -259,9 +287,9 @@ function renderProfile(id){
 }
 
 function renderLogTable(){
-  const q=($('logSearch')?.value || '').toLowerCase(); const d=$('logDate')?.value;
-  const rows=logs.filter(l=>(!d || l.date===d) && [l.name,l.school,l.email,l.internId].join(' ').toLowerCase().includes(q)).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-  $('logTable').innerHTML = rows.map(l=>`<tr><td>${escapeHtml(l.internId)}</td><td class="td-name">${escapeHtml(l.name)}</td><td>${escapeHtml(l.school)}</td><td>${escapeHtml(l.email)}</td><td>${formatDate(l.date)}</td><td>${formatTime(l.timestamp)}</td><td><span class="badge badge-success">${escapeHtml(l.status)}</span></td></tr>`).join('') || `<tr><td colspan="7" class="td-muted">No attendance records found.</td></tr>`;
+  const q=($('logSearch').value||'').toLowerCase(), d=$('logDate').value;
+  const rows=logs.filter(l=>(!d||l.date===d) && [l.name,l.school,l.email,l.attendanceType].join(' ').toLowerCase().includes(q));
+  $('logTable').innerHTML = rows.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(l=>`<tr><td>${escapeHtml(l.internId)}</td><td class="td-name">${escapeHtml(l.name)}</td><td>${attendanceLabel(l.attendanceType)}</td><td>${formatDate(l.date)}</td><td>${formatTime(l.timestamp)}</td><td>${escapeHtml(l.latitude||'')}</td><td>${escapeHtml(l.longitude||'')}</td><td>${l.latitude&&l.longitude?`<a target="_blank" href="https://www.google.com/maps?q=${l.latitude},${l.longitude}">Map</a>`:'—'}</td></tr>`).join('') || `<tr><td colspan="8" class="td-muted">No logs found.</td></tr>`;
 }
 async function clearTodayLogs(){
   if(!confirm('Clear all check-ins for today?')) return;
@@ -300,6 +328,30 @@ function taskCardHtml(t){
   return `<div class="task-card"><div class="task-card-title">${escapeHtml(t.title)}</div>${t.desc?`<div class="task-card-desc">${escapeHtml(t.desc)}</div>`:''}<div class="task-card-meta"><span class="badge ${t.priority==='high'?'badge-warn':'badge-accent'}">${escapeHtml(t.priority||'normal')}</span><span class="td-muted">${escapeHtml(t.assigned||'All Interns')}</span><span class="td-muted">${formatDate(t.date)}</span></div><div class="task-card-actions">${adminButtons}</div></div>`;
 }
 
+let attendanceMapInstance = null;
+function renderMapDashboard(){
+  const mapEl = $('attendanceMap');
+  const table = $('mapLogTable');
+  if(!mapEl || !table) return;
+  const locationLogs = logs.filter(l => l.latitude && l.longitude).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  $('mapCount').textContent = locationLogs.length + ' records';
+  table.innerHTML = locationLogs.slice(0,100).map(l=>`<tr><td>${escapeHtml(l.name)}</td><td>${attendanceLabel(l.attendanceType)}</td><td>${formatDate(l.date)}</td><td>${formatTime(l.timestamp)}</td><td><a target="_blank" href="https://www.google.com/maps?q=${l.latitude},${l.longitude}">${escapeHtml(l.latitude)}, ${escapeHtml(l.longitude)}</a></td></tr>`).join('') || '<tr><td colspan="5" class="td-muted">No attendance locations yet.</td></tr>';
+  if(typeof L === 'undefined'){
+    mapEl.innerHTML = '<div class="empty-state"><p>Map library did not load. Check your internet connection.</p></div>';
+    return;
+  }
+  if(attendanceMapInstance){ attendanceMapInstance.remove(); attendanceMapInstance = null; }
+  attendanceMapInstance = L.map('attendanceMap');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(attendanceMapInstance);
+  if(!locationLogs.length){ attendanceMapInstance.setView([8.4542,124.6319], 12); return; }
+  const group = L.featureGroup();
+  locationLogs.forEach(l=>{
+    const marker = L.marker([Number(l.latitude), Number(l.longitude)]).bindPopup(`<strong>${escapeHtml(l.name)}</strong><br>${attendanceLabel(l.attendanceType)}<br>${formatDate(l.date)} ${formatTime(l.timestamp)}<br>Accuracy: ${escapeHtml(l.accuracy||'')} m`);
+    marker.addTo(group);
+  });
+  group.addTo(attendanceMapInstance);
+  attendanceMapInstance.fitBounds(group.getBounds().pad(0.2));
+}
 function renderCalendar(){
   if(currentRole === 'ojt' && !foundIntern){ $('calGrid').innerHTML = requireInternLookupMessage(); $('calMonthLabel').textContent = 'My Calendar'; $('dayPanelDate').textContent='Intern ID required'; $('dayPanelEvents').innerHTML=requireInternLookupMessage(); return; }
   const y=calDate.getFullYear(), m=calDate.getMonth(); $('calMonthLabel').textContent = calDate.toLocaleDateString('en-PH',{month:'long',year:'numeric'});
@@ -341,11 +393,30 @@ function renderDtrPreview(){
 function makeDtrHtml(intern,ym){
   const [y,m]=ym.split('-').map(Number); const days=new Date(y,m,0).getDate(); const monthName=new Date(y,m-1,1).toLocaleDateString('en-PH',{month:'long',year:'numeric'});
   const myLogs=logs.filter(l=>l.internId===intern.id && l.date.startsWith(ym)); let totalDays=0;
-  let rows=''; for(let d=1; d<=31; d++){ const date=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const log=myLogs.find(l=>Number(l.date.slice(8))===d); const valid=d<=days; if(log) totalDays++; rows += `<tr><td class="day-col">${d}</td><td>${valid && log ? formatTime(log.timestamp).replace(/:\d{2} /,' ') : ''}</td><td>${valid && log ? $('dtrOfficialDepart').value : ''}</td><td></td><td></td><td>${valid && log ? '1' : ''}</td></tr>`; }
-  const one = `<div class="dtr-single"><div class="dtr-form-no">Civil Service Form No. 48</div><div class="dtr-title">DAILY TIME RECORD</div><div class="dtr-subtitle">${monthName}</div><div class="dtr-name-row">${escapeHtml(intern.name.toUpperCase())}</div><div class="dtr-name-label">Name</div><div class="dtr-info-row">Official hours for arrival: <span class="dtr-info-val">${escapeHtml($('dtrOfficialArrival').value)}</span> departure: <span class="dtr-info-val">${escapeHtml($('dtrOfficialDepart').value)}</span></div><table class="dtr-table"><thead><tr><th rowspan="2">Day</th><th colspan="2">A.M.</th><th colspan="2">P.M.</th><th rowspan="2">Total</th></tr><tr><th>Arrival</th><th>Departure</th><th>Arrival</th><th>Departure</th></tr></thead><tbody>${rows}<tr class="dtr-total-row"><td colspan="5">TOTAL DAYS</td><td>${totalDays}</td></tr></tbody></table><div class="dtr-footer"><div class="dtr-cert">I certify on my honor that the above is a true and correct report of the hours of work performed.</div><div class="dtr-sig-row"><div class="dtr-sig-block"><div class="dtr-sig-name">${escapeHtml(intern.name.toUpperCase())}</div><div class="dtr-sig-label">Signature</div></div><div class="dtr-sig-block"><div class="dtr-verified">Verified as to the prescribed office hours:</div><div class="dtr-sig-name">${escapeHtml($('dtrInCharge').value)}</div><div class="dtr-sig-label">In-Charge</div></div></div></div></div>`;
-  return `<div class="dtr-wrap" id="dtrPrintArea"><div class="dtr-pair">${one}${one}</div></div>`;
+  let rows='';
+  for(let d=1; d<=31; d++){
+    const dayLogs=myLogs.filter(l=>Number(l.date.slice(8))===d);
+    const valid=d<=days;
+    const mi=dayLogs.find(l=>l.attendanceType==='morning_in');
+    const mo=dayLogs.find(l=>l.attendanceType==='morning_out');
+    const ai=dayLogs.find(l=>l.attendanceType==='afternoon_in');
+    const ao=dayLogs.find(l=>l.attendanceType==='afternoon_out');
+    if(valid && dayLogs.length) totalDays++;
+    const ft = log => log ? formatTime(log.timestamp).replace(/:\d{2} /,' ') : '';
+    rows += `<tr><td class="day-col">${d}</td><td>${valid ? ft(mi) : ''}</td><td>${valid ? ft(mo) : ''}</td><td>${valid ? ft(ai) : ''}</td><td>${valid ? ft(ao) : ''}</td><td>${valid && dayLogs.length ? '1' : ''}</td></tr>`;
+  }
+  const internName = escapeHtml(String(intern.name || '').toUpperCase());
+  const internId = escapeHtml(intern.id || '');
+  const heading = `<div class="dtr-print-heading"><h2>DAILY TIME RECORD</h2><div>Intern: <strong>${internName}</strong> &nbsp; | &nbsp; ID: <strong>${internId}</strong> &nbsp; | &nbsp; Period: <strong>${escapeHtml(monthName)}</strong></div></div>`;
+  const one = `<div class="dtr-single"><div class="dtr-form-no">Civil Service Form No. 48</div><div class="dtr-title">DAILY TIME RECORD</div><div class="dtr-subtitle">${escapeHtml(monthName)}</div><div class="dtr-name-row">${internName}</div><div class="dtr-name-label">Name of Intern</div><div class="dtr-info-row">Intern ID: <span class="dtr-info-val">${internId}</span></div><div class="dtr-info-row">Official hours for arrival: <span class="dtr-info-val">${escapeHtml($('dtrOfficialArrival').value)}</span> departure: <span class="dtr-info-val">${escapeHtml($('dtrOfficialDepart').value)}</span></div><table class="dtr-table"><thead><tr><th rowspan="2">Day</th><th colspan="2">A.M.</th><th colspan="2">P.M.</th><th rowspan="2">Total</th></tr><tr><th>Arrival</th><th>Departure</th><th>Arrival</th><th>Departure</th></tr></thead><tbody>${rows}<tr class="dtr-total-row"><td colspan="5">TOTAL DAYS</td><td>${totalDays}</td></tr></tbody></table><div class="dtr-footer"><div class="dtr-cert">I certify on my honor that the above is a true and correct report of the hours of work performed.</div><div class="dtr-sig-row"><div class="dtr-sig-block"><div class="dtr-sig-name">${internName}</div><div class="dtr-sig-label">Signature of Intern</div></div><div class="dtr-sig-block"><div class="dtr-verified">Verified as to the prescribed office hours:</div><div class="dtr-sig-name">${escapeHtml($('dtrInCharge').value)}</div><div class="dtr-sig-label">In-Charge</div></div></div></div></div>`;
+  return `<div class="dtr-wrap" id="dtrPrintArea">${heading}<div class="dtr-pair">${one}${one}</div></div>`;
 }
-function printDtr(){ renderDtrPreview(); if($('dtrPreviewWrap').style.display==='none'){ showToast('Select intern and month first.','error'); return; } window.print(); }
+function printDtr(){
+  renderDtrPreview();
+  if(currentRole === 'ojt' && !foundIntern){ showToast('Enter your Intern ID first before printing DTR.','error'); return; }
+  if($('dtrPreviewWrap').style.display==='none'){ showToast('Select intern and month first.','error'); return; }
+  window.print();
+}
 
 function showToast(msg,type='success'){ const t=$('toast'); $('toastMsg').textContent=msg; $('toastIcon').textContent=type==='success'?'✓':'!'; t.className='toast '+type+' show'; setTimeout(()=>t.classList.remove('show'),3000); }
 
@@ -353,9 +424,9 @@ function showToast(msg,type='success'){ const t=$('toast'); $('toastMsg').textCo
 // Make functions available to HTML onclick handlers
 Object.assign(window, {
   enterAsOJT, openAdminLogin, closeAdminLogin, submitAdminLogin, signOut, navigate,
-  loadAllData, lookupIntern, confirmCheckin, clearCheckin,
+  loadAllData, lookupIntern, confirmCheckin, recordAttendance, clearCheckin,
   openAddModal, closeAddModal, saveIntern, editIntern, deleteIntern, openProfile,
   renderInternTable, renderLogTable, clearTodayLogs, previewInternPhoto,
   openAddTaskModal, closeAddTaskModal, saveTask, editTask, deleteTask, setTaskStatus,
-  calShift, calGoToday, selectCalendarDay, renderDtrPreview, printDtr
+  calShift, calGoToday, selectCalendarDay, renderMapDashboard, renderDtrPreview, printDtr
 });

@@ -94,3 +94,27 @@ admin123
 This version adds a Profile Image field for each intern. Photos are resized in the browser and saved as a `photo` column in the `Interns` sheet.
 
 After uploading the new website files to GitHub, also replace your Google Apps Script code with the included `google-apps-script.gs`, save it, and deploy a new Web App version. The script will automatically add the `photo` column to your existing `Interns` sheet when data is saved.
+
+
+## Latest update
+- Intern dashboard includes Activity Board, Calendar, and Print DTR.
+- Interns can move only their assigned tasks between To Do, Doing, and Done.
+- DTR printout uses A4 landscape paper and includes the intern name and Intern ID on the printed page.
+- Data is online through the Google Apps Script API URL in `script.js`, so different devices can share the same Google Sheet database.
+
+## Attendance Time In/Out + Location Update
+
+The `Logs` sheet now needs these headers in row 1:
+
+`id | internId | name | school | email | date | timestamp | status | attendanceType | latitude | longitude | accuracy | mapUrl`
+
+Attendance types saved by the website:
+
+- `morning_in` = Morning Time In
+- `morning_out` = Morning Time Out
+- `afternoon_in` = Afternoon Time In
+- `afternoon_out` = Afternoon Time Out
+
+The website will ask for location permission when an intern clicks a time in/out button. Coordinates are saved in the `Logs` sheet and shown in the Admin Map Dashboard.
+
+After replacing `google-apps-script.gs`, redeploy the Apps Script using **Deploy > Manage deployments > Edit > New version > Deploy**.
