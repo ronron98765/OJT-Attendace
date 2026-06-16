@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InternTrack — Attendance System</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+:root{
+  --navy:#0f1f3d;--navy-mid:#1a2f52;--accent:#3b82f6;--accent-light:#60a5fa;
+  --accent-glow:rgba(59,130,246,0.15);--success:#10b981;--success-bg:rgba(16,185,129,0.12);
+  --warn:#f59e0b;--warn-bg:rgba(245,158,11,0.12);--danger:#ef4444;--danger-bg:rgba(239,68,68,0.1);
+  --surface:#162036;--surface2:#1e2d4a;--surface3:#243559;
+  --text:#e8eef8;--text-muted:#8fa3c0;--text-dim:#5a7399;
+  --border:rgba(59,130,246,0.15);--border-solid:#1e3055;--radius:12px;--radius-sm:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;font-size:14px;}
+h1,h2,h3,.brand{font-family:'Space Grotesk',sans-serif;}
+
+/* ── ROLE GATE ── */
+#roleGate{
+  position:fixed;inset:0;background:var(--navy);z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+}
+.gate-wrap{width:100%;max-width:900px;padding:24px;}
+.gate-title{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:800;
+  text-align:center;letter-spacing:-.5px;margin-bottom:6px;}
+.gate-sub{text-align:center;color:var(--text-muted);margin-bottom:36px;}
+.gate-cards{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.gate-card{
+  background:var(--surface);border:1.5px solid var(--border-solid);
+  border-radius:16px;padding:32px 28px;cursor:pointer;
+  transition:all .2s;text-align:center;
+}
+.gate-card:hover{border-color:var(--accent);background:var(--surface2);transform:translateY(-2px);}
+.gate-card.admin-card:hover{border-color:#818cf8;}
+.gate-icon{font-size:40px;margin-bottom:16px;}
+.gate-card-title{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;margin-bottom:8px;}
+.gate-card-desc{font-size:13px;color:var(--text-muted);line-height:1.6;}
+.gate-badge{
+  display:inline-block;margin-top:14px;
+  padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;
+}
+.badge-ojt{background:var(--success-bg);color:var(--success);}
+.badge-admin{background:rgba(129,140,248,.15);color:#a5b4fc;}
+
+/* Admin login */
+.admin-login-wrap{
+  position:fixed;inset:0;background:rgba(10,16,30,.85);z-index:10000;
+  display:none;align-items:center;justify-content:center;
+}
+.admin-login-wrap.open{display:flex;}
+.admin-login-box{
+  background:var(--surface);border:1px solid var(--border-solid);
+  border-radius:16px;padding:32px;width:100%;max-width:380px;margin:16px;
+  animation:fadeUp .25s ease;
+}
+.admin-login-title{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;margin-bottom:6px;}
+.admin-login-sub{font-size:13px;color:var(--text-muted);margin-bottom:24px;}
+.login-err{
+  background:var(--danger-bg);border:1px solid rgba(239,68,68,.25);
+  color:#f87171;font-size:12.5px;padding:9px 12px;border-radius:8px;margin-bottom:14px;display:none;
+}
+.login-err.show{display:block;}
+
+/* ── LAYOUT ── */
+.app{display:flex;min-height:100vh;}
+.sidebar{
+  width:240px;background:var(--surface);border-right:1px solid var(--border-solid);
+  display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;
+}
+.sidebar-brand{padding:20px;border-bottom:1px solid var(--border-solid);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{
+  width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#818cf8);
+  border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:#fff;flex-shrink:0;
+}
+.brand-text{font-weight:600;font-size:16px;letter-spacing:-.3px;}
+.brand-sub{font-size:11px;color:var(--text-dim);margin-top:1px;}
+.sidebar-nav{padding:14px 12px;flex:1;overflow-y:auto;}
+.nav-label{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--text-dim);
+  text-transform:uppercase;padding:0 8px;margin:12px 0 6px;}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;
+  border-radius:var(--radius-sm);cursor:pointer;color:var(--text-muted);
+  font-size:13.5px;font-weight:500;transition:all .15s;margin-bottom:2px;user-select:none;
+}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:var(--accent-glow);color:var(--accent-light);border:1px solid var(--border);}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;}
+.sidebar-footer{
+  padding:14px 16px;border-top:1px solid var(--border-solid);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sidebar-role-badge{
+  font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:20px;
+}
+.role-ojt{background:var(--success-bg);color:var(--success);}
+.role-admin{background:rgba(129,140,248,.15);color:#a5b4fc;}
+.sidebar-signout{
+  font-size:11.5px;color:var(--text-dim);cursor:pointer;padding:3px 6px;border-radius:6px;
+  transition:all .15s;
+}
+.sidebar-signout:hover{color:var(--danger);}
+
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{
+  height:60px;background:var(--surface);border-bottom:1px solid var(--border-solid);
+  display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:50;
+}
+.topbar-title{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;flex:1;}
+.topbar-time{
+  font-size:12px;color:var(--text-muted);background:var(--surface2);
+  padding:5px 12px;border-radius:20px;border:1px solid var(--border-solid);
+  font-variant-numeric:tabular-nums;
+}
+.content{padding:28px;flex:1;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border-solid);border-radius:var(--radius);padding:24px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.card-title{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;}
+
+/* ── OJT PORTAL ── */
+.ojt-hero{max-width:520px;margin:0 auto;text-align:center;padding:20px 0 36px;}
+.ojt-hero h2{font-size:26px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;}
+.ojt-hero p{color:var(--text-muted);font-size:14px;}
+.ojt-wrap{max-width:520px;margin:0 auto;}
+.id-input-group{display:flex;gap:10px;margin-bottom:16px;}
+.id-input{
+  flex:1;background:var(--surface2);border:1.5px solid var(--border-solid);
+  border-radius:var(--radius-sm);padding:13px 16px;color:var(--text);
+  font-size:16px;font-weight:500;font-family:'Space Grotesk',sans-serif;
+  letter-spacing:1px;outline:none;transition:border-color .15s;
+}
+.id-input:focus{border-color:var(--accent);}
+.id-input::placeholder{color:var(--text-dim);font-size:14px;letter-spacing:0;font-weight:400;}
+
+/* OJT Profile Card */
+.intern-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:24px;display:none;margin-bottom:16px;animation:fadeUp .3s ease;
+}
+.intern-card.visible{display:block;}
+.intern-card-top{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+.intern-avatar{
+  width:56px;height:56px;background:linear-gradient(135deg,var(--accent),#818cf8);
+  border-radius:14px;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:#fff;flex-shrink:0;
+}
+.intern-card-name{font-size:20px;font-weight:700;letter-spacing:-.3px;}
+.intern-card-id{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.intern-details{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.detail-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;}
+.detail-value{font-size:14px;font-weight:500;}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:10px 20px;border:none;border-radius:var(--radius-sm);cursor:pointer;
+  font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:7px;
+  transition:all .15s;font-family:'Inter',sans-serif;
+}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover{background:#2563eb;transform:translateY(-1px);}
+.btn-success{background:var(--success);color:#fff;}
+.btn-success:hover{background:#059669;}
+.btn-outline{background:transparent;border:1.5px solid var(--border-solid);color:var(--text-muted);}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent-light);background:var(--accent-glow);}
+.btn-sm{padding:7px 14px;font-size:12.5px;}
+.btn-xs{padding:5px 10px;font-size:11.5px;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.badge-success{background:var(--success-bg);color:var(--success);}
+.badge-warn{background:var(--warn-bg);color:var(--warn);}
+.badge-accent{background:var(--accent-glow);color:var(--accent-light);border:1px solid var(--border);}
+.badge-purple{background:rgba(129,140,248,.15);color:#a5b4fc;}
+
+/* ── NOT FOUND ── */
+.not-found-msg{
+  display:none;text-align:center;padding:20px;background:var(--danger-bg);
+  border:1px solid rgba(239,68,68,.2);border-radius:var(--radius);margin-bottom:16px;color:#f87171;
+}
+.not-found-msg.visible{display:block;}
+
+/* ── OJT TASKS VIEW ── */
+.ojt-task-item{
+  padding:14px 16px;background:var(--surface2);border:1px solid var(--border-solid);
+  border-radius:var(--radius-sm);margin-bottom:10px;display:flex;align-items:flex-start;gap:12px;
+  animation:fadeUp .2s ease;
+}
+.ojt-task-item:last-child{margin-bottom:0;}
+.ojt-task-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.ojt-task-title{font-size:14px;font-weight:600;margin-bottom:3px;}
+.ojt-task-desc{font-size:12.5px;color:var(--text-muted);line-height:1.5;}
+.ojt-task-meta{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border-solid);border-radius:var(--radius);padding:20px;}
+.stat-label{font-size:12px;color:var(--text-muted);margin-bottom:8px;}
+.stat-value{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--text-dim);margin-top:4px;}
+.stat-accent{color:var(--accent-light);}
+.stat-success{color:var(--success);}
+.stat-warn{color:var(--warn);}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;
+  padding:10px 14px;text-align:left;border-bottom:1px solid var(--border-solid);}
+td{padding:12px 14px;border-bottom:1px solid rgba(30,48,85,.5);font-size:13.5px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--surface2);}
+.td-name{font-weight:600;}
+.td-muted{color:var(--text-muted);font-size:12.5px;}
+
+/* ── FORMS ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group.full{grid-column:1/-1;}
+.form-label{font-size:12px;font-weight:600;color:var(--text-muted);}
+.form-input,.form-select,.form-textarea{
+  background:var(--surface2);border:1.5px solid var(--border-solid);border-radius:var(--radius-sm);
+  padding:10px 14px;color:var(--text);font-size:13.5px;font-family:'Inter',sans-serif;
+  outline:none;transition:border-color .15s;width:100%;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);}
+.form-select option{background:var(--navy-mid);}
+.form-textarea{min-height:90px;resize:vertical;}
+.search-input{
+  flex:1;min-width:180px;background:var(--surface2);border:1.5px solid var(--border-solid);
+  border-radius:var(--radius-sm);padding:9px 14px;color:var(--text);font-size:13.5px;
+  font-family:'Inter',sans-serif;outline:none;transition:border-color .15s;
+}
+.search-input:focus{border-color:var(--accent);}
+.log-filters{display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
+
+/* ── TASK BOARD ── */
+.task-columns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.task-col{background:var(--surface2);border-radius:var(--radius);padding:16px;border:1px solid var(--border-solid);min-height:280px;}
+.task-col-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.task-col-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;}
+.col-dot{width:8px;height:8px;border-radius:50%;}
+.dot-todo{background:var(--text-dim);}
+.dot-doing{background:var(--accent);}
+.dot-done{background:var(--success);}
+.task-count{background:var(--surface3);color:var(--text-muted);font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;}
+.task-card{
+  background:var(--surface);border:1px solid var(--border-solid);border-radius:var(--radius-sm);
+  padding:12px 14px;margin-bottom:8px;transition:border-color .15s;animation:fadeUp .2s ease;
+}
+.task-card:hover{border-color:var(--border);}
+.task-card-title{font-size:13.5px;font-weight:500;margin-bottom:6px;}
+.task-card-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.task-card-actions{display:flex;gap:6px;margin-top:10px;}
+.task-btn{
+  background:var(--surface2);border:1px solid var(--border-solid);border-radius:6px;
+  padding:4px 10px;color:var(--text-muted);font-size:11.5px;font-weight:500;cursor:pointer;
+  transition:all .15s;font-family:'Inter',sans-serif;
+}
+.task-btn:hover{color:var(--text);border-color:var(--accent);background:var(--accent-glow);}
+.task-btn.del:hover{color:var(--danger);border-color:var(--danger);background:var(--danger-bg);}
+
+/* ── TWO-COL GRID ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+
+/* ── INTERN PROFILE DETAIL (Admin) ── */
+.profile-header{
+  display:flex;align-items:center;gap:20px;padding:24px;
+  background:var(--surface2);border-radius:var(--radius);margin-bottom:20px;
+  border:1px solid var(--border-solid);
+}
+.profile-avatar{
+  width:72px;height:72px;background:linear-gradient(135deg,var(--accent),#818cf8);
+  border-radius:18px;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;color:#fff;flex-shrink:0;
+}
+.profile-name{font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;}
+.profile-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.profile-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;}
+.profile-field{background:var(--surface2);border:1px solid var(--border-solid);border-radius:var(--radius-sm);padding:14px 16px;}
+.profile-field-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
+.profile-field-value{font-size:14px;font-weight:500;}
+
+/* ── MODAL ── */
+.modal-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(10,16,30,.75);
+  z-index:200;align-items:center;justify-content:center;
+}
+.modal-backdrop.open{display:flex;}
+.modal{
+  background:var(--surface);border:1px solid var(--border-solid);border-radius:16px;
+  padding:28px;width:100%;max-width:520px;margin:16px;animation:fadeUp .25s ease;
+  max-height:90vh;overflow-y:auto;
+}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.modal-title{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700;}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:22px;line-height:1;padding:2px;}
+.modal-close:hover{color:var(--text);}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:14px 18px;font-size:13.5px;font-weight:500;
+  display:flex;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.4);
+  z-index:600;transform:translateY(80px);opacity:0;
+  transition:all .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-color:rgba(16,185,129,.3);}
+.toast.error{border-color:rgba(239,68,68,.3);}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:40px 24px;color:var(--text-dim);}
+.empty-state-icon{font-size:36px;margin-bottom:12px;}
+.empty-state p{font-size:13.5px;}
+
+/* ── CALENDAR ── */
+.cal-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.cal-nav-btn{
+  width:34px;height:34px;background:var(--surface2);border:1px solid var(--border-solid);
+  border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--text-muted);transition:all .15s;flex-shrink:0;
+}
+.cal-nav-btn:hover{border-color:var(--accent);color:var(--accent-light);background:var(--accent-glow);}
+.cal-month-label{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;flex:1;}
+.cal-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;align-items:center;}
+.cal-legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);}
+.cal-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.dot-task{background:#3b82f6;}.dot-bday{background:#f43f5e;}.dot-checkin{background:#10b981;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day-header{text-align:center;font-size:11px;font-weight:700;color:var(--text-dim);
+  text-transform:uppercase;letter-spacing:.6px;padding:6px 0 10px;}
+.cal-cell{
+  background:var(--surface2);border:1px solid var(--border-solid);border-radius:var(--radius-sm);
+  min-height:95px;padding:7px;cursor:pointer;transition:border-color .15s,background .15s;overflow:hidden;
+}
+.cal-cell:hover{border-color:var(--accent);background:var(--surface3);}
+.cal-cell.other-month{opacity:.3;pointer-events:none;}
+.cal-cell.today{border-color:var(--accent);background:rgba(59,130,246,.07);}
+.cal-cell.today .cal-cell-num{
+  background:var(--accent);color:#fff;border-radius:50%;width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;font-weight:700;
+}
+.cal-cell-num{font-size:12px;font-weight:600;color:var(--text-muted);width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;margin-bottom:4px;}
+.cal-events{display:flex;flex-direction:column;gap:2px;}
+.cal-event{font-size:10.5px;font-weight:500;padding:2px 5px;border-radius:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
+.cal-event.task{background:rgba(59,130,246,.18);color:#93c5fd;}
+.cal-event.bday{background:rgba(244,63,94,.18);color:#fda4af;}
+.cal-event.checkin{background:rgba(16,185,129,.18);color:#6ee7b7;}
+.cal-more{font-size:10px;color:var(--text-dim);margin-top:2px;font-weight:600;}
+.cal-layout{display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start;}
+.day-panel{background:var(--surface);border:1px solid var(--border-solid);border-radius:var(--radius);
+  padding:20px;position:sticky;top:80px;}
+.day-panel-date{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;
+  margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-solid);}
+.day-event-item{
+  display:flex;align-items:flex-start;gap:9px;padding:9px 0;
+  border-bottom:1px solid rgba(30,48,85,.5);font-size:13px;
+}
+.day-event-item:last-child{border-bottom:none;}
+.day-event-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;
+  justify-content:center;font-size:13px;flex-shrink:0;}
+.icon-task{background:rgba(59,130,246,.15);}
+.icon-bday{background:rgba(244,63,94,.15);}
+.icon-checkin{background:rgba(16,185,129,.15);}
+.day-event-title{font-weight:600;line-height:1.3;}
+.day-event-sub{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+
+/* ── DTR ── */
+@media print{
+  body *{visibility:hidden!important;}
+  #dtrPrintArea,#dtrPrintArea *{visibility:visible!important;}
+  #dtrPrintArea{position:fixed!important;top:0;left:0;width:100%;background:#fff!important;z-index:9999;}
+  @page{size:A4 landscape;margin:8mm;}
+}
+.dtr-wrap{font-family:Arial,sans-serif;font-size:9px;color:#000;background:#fff;width:100%;}
+.dtr-pair{display:flex;gap:16px;}
+.dtr-single{flex:1;border:1px solid #000;padding:8px 10px;}
+.dtr-form-no{font-size:7.5px;margin-bottom:2px;}
+.dtr-title{text-align:center;font-size:13px;font-weight:bold;letter-spacing:1px;margin-bottom:1px;}
+.dtr-subtitle{text-align:center;font-size:8px;margin-bottom:5px;}
+.dtr-name-row{text-align:center;font-size:12px;font-weight:bold;border-bottom:1px solid #000;padding-bottom:3px;margin-bottom:2px;}
+.dtr-name-label{text-align:center;font-size:7.5px;margin-bottom:5px;}
+.dtr-info-row{display:flex;font-size:8px;margin-bottom:2px;gap:6px;flex-wrap:wrap;}
+.dtr-info-val{font-weight:bold;border-bottom:1px solid #000;min-width:60px;display:inline-block;}
+.dtr-table{width:100%;border-collapse:collapse;margin-top:5px;font-size:7.5px;}
+.dtr-table th,.dtr-table td{border:1px solid #000;text-align:center;padding:1px 2px;height:13px;line-height:1.1;font-weight:normal;color:#000;background:#fff;}
+.dtr-table th{font-weight:bold;font-size:7px;padding:2px 1px;}
+.dtr-table .day-col{width:16px;font-weight:bold;}
+.dtr-total-row td{font-weight:bold;border-top:2px solid #000;}
+.dtr-footer{margin-top:6px;font-size:7.5px;}
+.dtr-cert{font-style:italic;margin-bottom:10px;line-height:1.5;}
+.dtr-sig-row{display:flex;justify-content:space-between;align-items:flex-end;}
+.dtr-sig-block{text-align:center;}
+.dtr-sig-name{font-weight:bold;font-size:9px;border-top:1px solid #000;padding-top:2px;margin-top:20px;}
+.dtr-sig-label{font-size:7px;}
+.dtr-verified{font-size:7.5px;margin-bottom:3px;}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .task-columns,.two-col,.profile-grid{grid-template-columns:1fr;}
+  .form-grid{grid-template-columns:1fr;}
+  .cal-layout{grid-template-columns:1fr;}
+  .cal-cell{min-height:70px;}
+  .gate-cards{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ ROLE GATE ══ -->
+<div id="roleGate">
+  <div class="gate-wrap">
+    <div style="text-align:center;margin-bottom:12px">
+      <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:18px">
+        <div class="logo-mark" style="width:44px;height:44px;font-size:18px">IT</div>
+        <span style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700">InternTrack</span>
+      </div>
+    </div>
+    <div class="gate-title">Welcome! Who are you?</div>
+    <div class="gate-sub">Select your role to continue to the right view.</div>
+    <div class="gate-cards">
+      <div class="gate-card" onclick="enterAsOJT()">
+        <div class="gate-icon">🎓</div>
+        <div class="gate-card-title">OJT / Intern</div>
+        <div class="gate-card-desc">Check in for attendance and view your assigned tasks for the day.</div>
+        <div class="gate-badge badge-ojt">Intern Portal</div>
+      </div>
+      <div class="gate-card admin-card" onclick="openAdminLogin()">
+        <div class="gate-icon">🛡️</div>
+        <div class="gate-card-title">Administrator</div>
+        <div class="gate-card-desc">Manage interns, monitor attendance, assign tasks, and generate reports.</div>
+        <div class="gate-badge badge-admin">Requires Password</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN LOGIN ══ -->
+<div class="admin-login-wrap" id="adminLogin">
+  <div class="admin-login-box">
+    <div class="admin-login-title">Admin Login</div>
+    <div class="admin-login-sub">Enter the admin password to access the dashboard.</div>
+    <div class="login-err" id="loginErr">Incorrect password. Please try again.</div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="adminPwInput" placeholder="Enter admin password"
+        onkeydown="if(event.key==='Enter')submitAdminLogin()" />
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1" onclick="submitAdminLogin()">Sign In</button>
+      <button class="btn btn-outline" onclick="closeAdminLogin()">Cancel</button>
+    </div>
+    <div style="margin-top:14px;font-size:11.5px;color:var(--text-dim);text-align:center">
+      Default password: <strong style="color:var(--text-muted)">admin123</strong>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div class="app" id="mainApp" style="display:none">
+
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">
+        <div class="logo-mark">IT</div>
+        <div><div class="brand-text">InternTrack</div><div class="brand-sub">Attendance System</div></div>
+      </div>
+    </div>
+    <div class="sidebar-nav" id="sidebarNav">
+      <!-- Populated by JS based on role -->
+    </div>
+    <div class="sidebar-footer">
+      <span class="sidebar-role-badge" id="roleBadge">OJT</span>
+      <span class="sidebar-signout" onclick="signOut()" title="Switch role">⇠ Switch</span>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">—</div>
+      <div class="topbar-time" id="clock">--:-- --</div>
+    </div>
+    <div class="content">
+
+      <!-- ══ OJT CHECK-IN ══ -->
+      <div class="page" id="page-checkin">
+        <div class="ojt-hero">
+          <h2>Good day, Intern! 👋</h2>
+          <p>Enter your Intern ID to check in and see your tasks for today.</p>
+        </div>
+        <div class="ojt-wrap">
+          <div class="id-input-group">
+            <input type="text" class="id-input" id="internIdInput"
+              placeholder="Enter Intern ID  (e.g. INT-001)"
+              onkeydown="if(event.key==='Enter')lookupIntern()" />
+            <button class="btn btn-primary" onclick="lookupIntern()">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              Check In
+            </button>
+          </div>
+          <div class="not-found-msg" id="notFoundMsg">❌ Intern ID not found. Please check your ID or contact your admin.</div>
+
+          <div class="intern-card" id="internCard">
+            <div class="intern-card-top">
+              <div class="intern-avatar" id="internAvatar">A</div>
+              <div>
+                <div class="intern-card-name" id="internName">—</div>
+                <div class="intern-card-id" id="internIdDisplay">ID: —</div>
+              </div>
+            </div>
+            <div class="intern-details">
+              <div class="detail-item"><div class="detail-label">School</div><div class="detail-value" id="internSchool">—</div></div>
+              <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value" id="internEmail" style="word-break:break-all;font-size:12.5px">—</div></div>
+              <div class="detail-item"><div class="detail-label">Check-In Time</div><div class="detail-value" id="internTime">—</div></div>
+              <div class="detail-item"><div class="detail-label">Entry Date</div><div class="detail-value" id="internDate">—</div></div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-success" id="confirmBtn" onclick="confirmCheckin()">✓ Confirm Check-In</button>
+              <button class="btn btn-outline" onclick="clearCheckin()">Cancel</button>
+              <span id="alreadyBadge" class="badge badge-warn" style="display:none">Already checked in today</span>
+            </div>
+          </div>
+
+          <!-- OJT sees ONLY their own tasks after check-in -->
+          <div id="ojtTasksSection" style="display:none;margin-top:24px">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">📋 Your Tasks Today</div>
+                <span class="badge badge-accent" id="ojtTodayLabel"></span>
+              </div>
+              <div id="ojtTaskList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ADMIN DASHBOARD ══ -->
+      <div class="page" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Total Interns</div><div class="stat-value stat-accent" id="totalInterns">0</div><div class="stat-sub">registered</div></div>
+          <div class="stat-card"><div class="stat-label">Present Today</div><div class="stat-value stat-success" id="presentToday">0</div><div class="stat-sub">checked in</div></div>
+          <div class="stat-card"><div class="stat-label">Total Check-Ins</div><div class="stat-value" id="totalLogs">0</div><div class="stat-sub">all time</div></div>
+          <div class="stat-card"><div class="stat-label">Active Tasks</div><div class="stat-value stat-warn" id="activeTasks">0</div><div class="stat-sub">in progress</div></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Recent Check-Ins</div></div>
+            <div class="table-wrap">
+              <table><thead><tr><th>Name</th><th>School</th><th>Time</th></tr></thead>
+              <tbody id="recentLogTable"></tbody></table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Interns</div>
+              <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add</button>
+            </div>
+            <div class="table-wrap">
+              <table><thead><tr><th>Name</th><th>ID</th><th>School</th><th></th></tr></thead>
+              <tbody id="internListDash"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ADMIN INTERNS PAGE ══ -->
+      <div class="page" id="page-interns">
+        <div class="card-header" style="margin-bottom:20px">
+          <h2 style="font-size:17px;font-weight:700">Interns</h2>
+          <button class="btn btn-primary" onclick="openAddModal()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Add Intern
+          </button>
+        </div>
+        <div class="card">
+          <div class="log-filters">
+            <input type="text" class="search-input" id="internSearch" placeholder="Search by name, ID, or school…" oninput="renderInternTable()" />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Intern ID</th><th>Name</th><th>School</th><th>Birthdate</th><th>Email</th><th>Actions</th></tr></thead>
+              <tbody id="internTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ INTERN PROFILE (Admin view) ══ -->
+      <div class="page" id="page-profile">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <button class="btn btn-outline btn-sm" onclick="navigate('interns')">← Back</button>
+          <h2 style="font-size:17px;font-weight:700">Intern Profile</h2>
+        </div>
+        <div class="profile-header" id="profileHeader"></div>
+        <div class="profile-grid" id="profileGrid"></div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Attendance History</div>
+              <span class="badge badge-accent" id="profileAttCount">0 records</span>
+            </div>
+            <div class="table-wrap">
+              <table><thead><tr><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+              <tbody id="profileAttTable"></tbody></table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Assigned Tasks</div>
+              <span class="badge badge-accent" id="profileTaskCount">0 tasks</span>
+            </div>
+            <div id="profileTaskList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ATTENDANCE LOG ══ -->
+      <div class="page" id="page-attendance">
+        <div class="card-header" style="margin-bottom:20px">
+          <h2 style="font-size:17px;font-weight:700">Attendance Log</h2>
+          <button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.2)" onclick="clearTodayLogs()">Clear Today</button>
+        </div>
+        <div class="card">
+          <div class="log-filters">
+            <input type="text" class="search-input" id="logSearch" placeholder="Search by name or school…" oninput="renderLogTable()" />
+            <input type="date" class="form-input" id="logDate" style="width:160px" onchange="renderLogTable()" />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Name</th><th>School</th><th>Email</th><th>Date</th><th>Time</th><th>Status</th></tr></thead>
+              <tbody id="logTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ACTIVITY BOARD ══ -->
+      <div class="page" id="page-tasks">
+        <div class="card-header" style="margin-bottom:20px">
+          <h2 style="font-size:17px;font-weight:700">Activity Board</h2>
+          <button class="btn btn-primary" onclick="openAddTaskModal()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Add Task
+          </button>
+        </div>
+        <div class="task-columns">
+          <div class="task-col">
+            <div class="task-col-header">
+              <div class="task-col-title"><span class="col-dot dot-todo"></span>To Do</div>
+              <span class="task-count" id="count-todo">0</span>
+            </div>
+            <div id="col-todo"></div>
+          </div>
+          <div class="task-col">
+            <div class="task-col-header">
+              <div class="task-col-title"><span class="col-dot dot-doing"></span>In Progress</div>
+              <span class="task-count" id="count-doing">0</span>
+            </div>
+            <div id="col-doing"></div>
+          </div>
+          <div class="task-col">
+            <div class="task-col-header">
+              <div class="task-col-title"><span class="col-dot dot-done"></span>Done</div>
+              <span class="task-count" id="count-done">0</span>
+            </div>
+            <div id="col-done"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ CALENDAR ══ -->
+      <div class="page" id="page-calendar">
+        <div class="cal-header">
+          <button class="cal-nav-btn" onclick="calShift(-1)"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+          <div class="cal-month-label" id="calMonthLabel">—</div>
+          <button class="cal-nav-btn" onclick="calShift(1)"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+          <button class="btn btn-outline btn-sm" onclick="calGoToday()">Today</button>
+        </div>
+        <div class="cal-legend">
+          <div class="cal-legend-item"><span class="cal-dot dot-task"></span>Task / Activity</div>
+          <div class="cal-legend-item"><span class="cal-dot dot-bday"></span>Birthday</div>
+          <div class="cal-legend-item"><span class="cal-dot dot-checkin"></span>Check-in</div>
+        </div>
+        <div class="cal-layout">
+          <div><div class="cal-grid" id="calGrid"></div></div>
+          <div class="day-panel" id="dayPanel">
+            <div class="day-panel-date" id="dayPanelDate">Select a day</div>
+            <div id="dayPanelEvents"><div class="empty-state" style="padding:24px 0"><div class="empty-state-icon">📅</div><p>Click a day to see events</p></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PRINT DTR ══ -->
+      <div class="page" id="page-dtr">
+        <div class="card-header" style="margin-bottom:20px">
+          <h2 style="font-size:17px;font-weight:700">Print Daily Time Record</h2>
+        </div>
+        <div class="card" style="margin-bottom:20px">
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Select Intern *</label>
+              <select class="form-select" id="dtrInternSelect" onchange="renderDtrPreview()"><option value="">— Select Intern —</option></select></div>
+            <div class="form-group"><label class="form-label">Month & Year *</label>
+              <input type="month" class="form-input" id="dtrMonth" onchange="renderDtrPreview()" /></div>
+            <div class="form-group"><label class="form-label">In-Charge Name</label>
+              <input type="text" class="form-input" id="dtrInCharge" value="HON. JOETERRY A. UY" oninput="renderDtrPreview()" /></div>
+            <div class="form-group"><label class="form-label">Official Arrival</label>
+              <input type="text" class="form-input" id="dtrOfficialArrival" value="8:00 AM" oninput="renderDtrPreview()" /></div>
+            <div class="form-group"><label class="form-label">Official Departure</label>
+              <input type="text" class="form-input" id="dtrOfficialDepart" value="5:00 PM" oninput="renderDtrPreview()" /></div>
+            <div class="form-group"><label class="form-label">Days Off</label>
+              <input type="text" class="form-input" id="dtrSaturdays" value="Saturdays" oninput="renderDtrPreview()" /></div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="printDtr()">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+              Print DTR
+            </button>
+            <button class="btn btn-outline" onclick="renderDtrPreview()">Preview</button>
+          </div>
+        </div>
+        <div class="card" id="dtrPreviewWrap" style="display:none">
+          <div class="card-header">
+            <div class="card-title">Preview</div>
+            <span class="badge badge-accent" id="dtrPreviewLabel">—</span>
+          </div>
+          <div id="dtrPreviewContainer" style="overflow-x:auto;background:#fff;border-radius:8px;padding:8px"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══ MODALS ══ -->
+<!-- Add/Edit Intern -->
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Add New Intern</div>
+      <button class="modal-close" onclick="closeAddModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Intern ID *</label><input type="text" class="form-input" id="fId" placeholder="e.g. INT-001" /></div>
+      <div class="form-group"><label class="form-label">Full Name *</label><input type="text" class="form-input" id="fName" placeholder="Juan dela Cruz" /></div>
+      <div class="form-group"><label class="form-label">School *</label><input type="text" class="form-input" id="fSchool" placeholder="University of ..." /></div>
+      <div class="form-group"><label class="form-label">Birthdate</label><input type="date" class="form-input" id="fBirth" /></div>
+      <div class="form-group full"><label class="form-label">Email *</label><input type="email" class="form-input" id="fEmail" placeholder="intern@email.com" /></div>
+      <div class="form-group full"><label class="form-label">Course / Program</label><input type="text" class="form-input" id="fCourse" placeholder="e.g. BS Information Technology" /></div>
+      <div class="form-group"><label class="form-label">OJT Start Date</label><input type="date" class="form-input" id="fStart" /></div>
+      <div class="form-group"><label class="form-label">OJT End Date</label><input type="date" class="form-input" id="fEnd" /></div>
+      <div class="form-group full"><label class="form-label">Required OJT Hours</label><input type="number" class="form-input" id="fHours" placeholder="e.g. 486" /></div>
+      <div class="form-group full"><label class="form-label">Notes / Remarks</label><textarea class="form-textarea" id="fNotes" placeholder="Any additional information…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveIntern()">Save Intern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Task -->
+<div class="modal-backdrop" id="addTaskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="taskModalTitle">Add Task</div>
+      <button class="modal-close" onclick="closeAddTaskModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full"><label class="form-label">Task Title *</label><input type="text" class="form-input" id="tTitle" placeholder="e.g. Update the weekly report" /></div>
+      <div class="form-group full"><label class="form-label">Description</label><textarea class="form-textarea" id="tDesc" placeholder="Describe what needs to be done…"></textarea></div>
+      <div class="form-group"><label class="form-label">Priority</label>
+        <select class="form-select" id="tPriority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-select" id="tStatus"><option value="todo">To Do</option><option value="doing">In Progress</option><option value="done">Done</option></select></div>
+      <div class="form-group full"><label class="form-label">Assigned To (name or ID)</label>
+        <input type="text" class="form-input" id="tAssigned" placeholder="e.g. Maria Santos or INT-001" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddTaskModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">✓</span>
+  <span id="toastMsg">Saved</span>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════
+let interns = JSON.parse(localStorage.getItem('it_interns')||'[]');
+let logs    = JSON.parse(localStorage.getItem('it_logs')||'[]');
+let tasks   = JSON.parse(localStorage.getItem('it_tasks')||'[]');
+let editingInternId = null;
+let editingTaskId   = null;
+const ADMIN_PASSWORD = 'admin123';
+
+function save(key){
+  if(key==='interns') localStorage.setItem('it_interns',JSON.stringify(interns));
+  if(key==='logs')    localStorage.setItem('it_logs',   JSON.stringify(logs));
+  if(key==='tasks')   localStorage.setItem('it_tasks',  JSON.stringify(tasks));
+}
+function uid(){ return Math.random().toString(36).substr(2,9); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function formatDate(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}) : '—'; }
+function formatTime(ts){ return new Date(ts).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function calcAge(bdate){ if(!bdate)return null; const b=new Date(bdate),n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n<new Date(n.getFullYear(),b.getMonth(),b.getDate()))a--; return a; }
+
+// Seed demo data
+if(interns.length===0){
+  interns=[
+    {id:'INT-001',name:'Maria Santos',  school:'University of the Philippines',        birthdate:'2003-04-12',email:'maria.santos@up.edu.ph',  course:'BS Computer Science',   start:'2025-06-01',end:'2025-08-31',hours:'486',notes:''},
+    {id:'INT-002',name:'Jose Reyes',    school:'Ateneo de Davao University',           birthdate:'2002-09-25',email:'jose.reyes@addu.edu.ph',  course:'BS Information Technology',start:'2025-06-01',end:'2025-08-31',hours:'486',notes:''},
+    {id:'INT-003',name:'Ana Dela Cruz', school:'University of Southeastern Philippines',birthdate:'2003-01-30',email:'ana.delacruz@usep.edu.ph',course:'BS Computer Engineering',start:'2025-06-01',end:'2025-08-31',hours:'486',notes:''},
+  ]; save('interns');
+}
+if(tasks.length===0){
+  tasks=[
+    {id:uid(),title:'Complete onboarding forms',desc:'Fill out all HR paperwork for the internship program.',priority:'high',status:'todo',assigned:'All Interns',date:today()},
+    {id:uid(),title:'Setup development environment',desc:'Install required tools and configure workstation.',priority:'normal',status:'doing',assigned:'Jose Reyes',date:today()},
+    {id:uid(),title:'Submit weekly report',desc:'Write and submit the first weekly progress report.',priority:'normal',status:'done',assigned:'Maria Santos',date:today()},
+  ]; save('tasks');
+}
+
+// ══════════════════════════════════════════════════
+// ROLE SYSTEM
+// ══════════════════════════════════════════════════
+let currentRole = null; // 'ojt' | 'admin'
+
+function enterAsOJT(){
+  currentRole = 'ojt';
+  document.getElementById('roleGate').style.display = 'none';
+  document.getElementById('mainApp').style.display  = 'flex';
+  buildSidebar();
+  document.getElementById('roleBadge').textContent = '🎓 OJT';
+  document.getElementById('roleBadge').className   = 'sidebar-role-badge role-ojt';
+  navigate('checkin');
+}
+
+function openAdminLogin(){
+  document.getElementById('adminPwInput').value = '';
+  document.getElementById('loginErr').classList.remove('show');
+  document.getElementById('adminLogin').classList.add('open');
+  setTimeout(()=>document.getElementById('adminPwInput').focus(),50);
+}
+function closeAdminLogin(){
+  document.getElementById('adminLogin').classList.remove('open');
+}
+function submitAdminLogin(){
+  const pw = document.getElementById('adminPwInput').value;
+  if(pw === ADMIN_PASSWORD){
+    closeAdminLogin();
+    currentRole = 'admin';
+    document.getElementById('roleGate').style.display = 'none';
+    document.getElementById('mainApp').style.display  = 'flex';
+    buildSidebar();
+    document.getElementById('roleBadge').textContent = '🛡️ Admin';
+    document.getElementById('roleBadge').className   = 'sidebar-role-badge role-admin';
+    navigate('dashboard');
+  } else {
+    document.getElementById('loginErr').classList.add('show');
+    document.getElementById('adminPwInput').value = '';
+    document.getElementById('adminPwInput').focus();
+  }
+}
+
+function signOut(){
+  currentRole = null;
+  document.getElementById('mainApp').style.display  = 'none';
+  document.getElementById('roleGate').style.display = 'flex';
+  clearCheckin();
+}
+
+// ══════════════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════════════
+const SIDEBAR_OJT = `
+  <div class="nav-label">My Portal</div>
+  <div class="nav-item" onclick="navigate('checkin')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    Check In & Tasks
+  </div>`;
+
+const SIDEBAR_ADMIN = `
+  <div class="nav-label">Admin</div>
+  <div class="nav-item" onclick="navigate('dashboard')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Dashboard
+  </div>
+  <div class="nav-item" onclick="navigate('interns')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+    Interns
+  </div>
+  <div class="nav-item" onclick="navigate('attendance')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    Attendance Log
+  </div>
+  <div class="nav-item" onclick="navigate('tasks')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Activity Board
+  </div>
+  <div class="nav-label">Reports</div>
+  <div class="nav-item" onclick="navigate('calendar')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    Calendar
+  </div>
+  <div class="nav-item" onclick="navigate('dtr')">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17H17.01M6 6h.01M6 12h.01M6 18h.01M12 6h.01M12 12h.01M12 18h.01M18 6h.01M18 12h.01M3 3h18v18H3z"/></svg>
+    Print DTR
+  </div>`;
+
+function buildSidebar(){
+  document.getElementById('sidebarNav').innerHTML = currentRole==='admin' ? SIDEBAR_ADMIN : SIDEBAR_OJT;
+}
+
+// ══════════════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════════════
+function updateClock(){
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock,1000); updateClock();
+
+// ══════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════
+const PAGE_TITLES = {
+  checkin:'Check In & Tasks', dashboard:'Dashboard', interns:'Interns',
+  profile:'Intern Profile', attendance:'Attendance Log', tasks:'Activity Board',
+  calendar:'Calendar', dtr:'Print DTR'
+};
+function navigate(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const el = document.getElementById('page-'+page);
+  if(!el) return;
+  el.classList.add('active');
+  // Highlight nav
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    const t = n.textContent.trim();
+    if((page==='checkin'    && t==='Check In & Tasks') ||
+       (page==='dashboard'  && t==='Dashboard') ||
+       (page==='interns'    && t==='Interns') ||
+       (page==='attendance' && t==='Attendance Log') ||
+       (page==='tasks'      && t==='Activity Board') ||
+       (page==='calendar'   && t==='Calendar') ||
+       (page==='dtr'        && t==='Print DTR')) n.classList.add('active');
+  });
+  document.getElementById('topbarTitle').textContent = PAGE_TITLES[page]||page;
+  if(page==='dashboard')  renderDashboard();
+  if(page==='interns')    renderInternTable();
+  if(page==='attendance'){document.getElementById('logDate').value=today(); renderLogTable();}
+  if(page==='tasks')      renderTasks();
+  if(page==='calendar')   renderCalendar();
+  if(page==='dtr'){populateDtrSelect(); document.getElementById('dtrMonth').value=today().slice(0,7);}
+}
+
+// ══════════════════════════════════════════════════
+// OJT CHECK-IN
+// ══════════════════════════════════════════════════
+let foundIntern = null;
+function lookupIntern(){
+  const val = document.getElementById('internIdInput').value.trim().toUpperCase();
+  document.getElementById('notFoundMsg').classList.remove('visible');
+  document.getElementById('internCard').classList.remove('visible');
+  document.getElementById('ojtTasksSection').style.display='none';
+  if(!val) return;
+  foundIntern = interns.find(i=>i.id.toUpperCase()===val);
+  if(!foundIntern){ document.getElementById('notFoundMsg').classList.add('visible'); return; }
+  const now = new Date(), todayStr=today();
+  const already = logs.find(l=>l.internId===foundIntern.id && l.date===todayStr);
+  document.getElementById('internAvatar').textContent  = foundIntern.name.charAt(0).toUpperCase();
+  document.getElementById('internName').textContent    = foundIntern.name;
+  document.getElementById('internIdDisplay').textContent='ID: '+foundIntern.id;
+  document.getElementById('internSchool').textContent  = foundIntern.school;
+  document.getElementById('internEmail').textContent   = foundIntern.email;
+  document.getElementById('internTime').textContent    = formatTime(now);
+  document.getElementById('internDate').textContent    = formatDate(todayStr);
+  const btn=document.getElementById('confirmBtn'), ab=document.getElementById('alreadyBadge');
+  if(already){ btn.style.display='none'; ab.style.display='inline-flex'; ab.textContent=`Already checked in at ${formatTime(already.timestamp)}`; }
+  else        { btn.style.display='';   ab.style.display='none'; }
+  document.getElementById('internCard').classList.add('visible');
+  renderOjtTasks(foundIntern);
+  document.getElementById('ojtTasksSection').style.display='block';
+}
+
+function confirmCheckin(){
+  if(!foundIntern) return;
+  const now=new Date(), todayStr=today();
+  logs.push({id:uid(),internId:foundIntern.id,name:foundIntern.name,school:foundIntern.school,email:foundIntern.email,date:todayStr,timestamp:now.toISOString(),status:'present'});
+  save('logs');
+  showToast('✓ Check-in confirmed for '+foundIntern.name,'success');
+  document.getElementById('confirmBtn').style.display='none';
+  const ab=document.getElementById('alreadyBadge');
+  ab.style.display='inline-flex'; ab.textContent=`Checked in at ${formatTime(now)}`;
+}
+
+function clearCheckin(){
+  document.getElementById('internIdInput').value='';
+  document.getElementById('internCard').classList.remove('visible');
+  document.getElementById('notFoundMsg').classList.remove('visible');
+  document.getElementById('ojtTasksSection').style.display='none';
+  foundIntern=null;
+}
+
+// OJT sees ONLY tasks assigned to them (by name or ID) or "All Interns"
+function renderOjtTasks(intern){
+  const myName = intern.name.toLowerCase();
+  const myId   = intern.id.toLowerCase();
+  const myTasks = tasks.filter(t=>{
+    const a=(t.assigned||'').toLowerCase();
+    return a==='all interns' || a.includes(myName) || a.includes(myId);
+  });
+  document.getElementById('ojtTodayLabel').textContent = formatDate(today());
+  const list = document.getElementById('ojtTaskList');
+  if(!myTasks.length){
+    list.innerHTML='<div class="empty-state"><div class="empty-state-icon">📭</div><p>No tasks assigned to you yet.</p></div>';
+    return;
+  }
+  list.innerHTML = myTasks.map(t=>{
+    const icon = t.status==='done'?'✅':t.status==='doing'?'🔄':'📌';
+    const statusLabel = t.status==='done'?'Done':t.status==='doing'?'In Progress':'To Do';
+    const badgeClass  = t.status==='done'?'badge-success':t.status==='doing'?'badge-accent':'badge-warn';
+    return `<div class="ojt-task-item">
+      <div class="ojt-task-icon">${icon}</div>
+      <div style="flex:1">
+        <div class="ojt-task-title">${t.title}</div>
+        ${t.desc?`<div class="ojt-task-desc">${t.desc}</div>`:''}
+        <div class="ojt-task-meta">
+          <span class="badge ${badgeClass}" style="font-size:11px">${statusLabel}</span>
+          ${t.priority==='high'?'<span class="badge badge-warn" style="font-size:11px">⚡ High Priority</span>':''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ══════════════════════════════════════════════════
+function renderDashboard(){
+  const todayStr=today();
+  const todayLogs=logs.filter(l=>l.date===todayStr);
+  const uniqueToday=[...new Set(todayLogs.map(l=>l.internId))].length;
+  document.getElementById('totalInterns').textContent = interns.length;
+  document.getElementById('presentToday').textContent = uniqueToday;
+  document.getElementById('totalLogs').textContent    = logs.length;
+  document.getElementById('activeTasks').textContent  = tasks.filter(t=>t.status!=='done').length;
+
+  const recent=[...logs].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,6);
+  document.getElementById('recentLogTable').innerHTML = recent.length
+    ? recent.map(l=>`<tr><td class="td-name">${l.name}</td><td class="td-muted">${l.school}</td><td class="td-muted">${formatTime(l.timestamp)}</td></tr>`).join('')
+    : '<tr><td colspan="3"><div class="empty-state" style="padding:20px"><p>No check-ins yet.</p></div></td></tr>';
+
+  document.getElementById('internListDash').innerHTML = interns.map(i=>`
+    <tr>
+      <td class="td-name" style="cursor:pointer;color:var(--accent-light)" onclick="viewProfile('${i.id}')">${i.name}</td>
+      <td><span class="badge badge-accent" style="font-size:11px">${i.id}</span></td>
+      <td class="td-muted">${i.school}</td>
+      <td><button class="btn btn-xs btn-outline" onclick="viewProfile('${i.id}')">View</button></td>
+    </tr>`).join('') || '<tr><td colspan="4"><div class="empty-state" style="padding:16px"><p>No interns yet.</p></div></td></tr>';
+}
+
+// ══════════════════════════════════════════════════
+// INTERN TABLE
+// ══════════════════════════════════════════════════
+function renderInternTable(){
+  const q=(document.getElementById('internSearch')?.value||'').toLowerCase();
+  const filtered=interns.filter(i=>i.name.toLowerCase().includes(q)||i.id.toLowerCase().includes(q)||i.school.toLowerCase().includes(q));
+  document.getElementById('internTable').innerHTML = filtered.length
+    ? filtered.map(i=>`
+      <tr>
+        <td><span class="badge badge-accent">${i.id}</span></td>
+        <td class="td-name" style="cursor:pointer;color:var(--accent-light)" onclick="viewProfile('${i.id}')">${i.name}</td>
+        <td class="td-muted">${i.school}</td>
+        <td class="td-muted">${i.birthdate?formatDate(i.birthdate):'—'}</td>
+        <td class="td-muted" style="font-size:12.5px">${i.email}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-xs" onclick="viewProfile('${i.id}')">Profile</button>
+            <button class="btn btn-outline btn-xs" onclick="editIntern('${i.id}')">Edit</button>
+            <button class="btn btn-xs" style="background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.2)" onclick="deleteIntern('${i.id}')">Remove</button>
+          </div>
+        </td>
+      </tr>`).join('')
+    : '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">👤</div><p>No interns found.</p></div></td></tr>';
+}
+
+// ══════════════════════════════════════════════════
+// INTERN PROFILE
+// ══════════════════════════════════════════════════
+function viewProfile(id){
+  const i = interns.find(x=>x.id===id);
+  if(!i) return;
+  const age = calcAge(i.birthdate);
+
+  document.getElementById('profileHeader').innerHTML=`
+    <div class="profile-avatar">${i.name.charAt(0).toUpperCase()}</div>
+    <div>
+      <div class="profile-name">${i.name}</div>
+      <div class="profile-meta">
+        <span class="badge badge-accent">${i.id}</span>
+        ${i.course?`<span class="badge badge-purple">${i.course}</span>`:''}
+        ${age!==null?`<span class="badge badge-warn">Age ${age}</span>`:''}
+      </div>
+    </div>`;
+
+  document.getElementById('profileGrid').innerHTML=`
+    <div class="profile-field"><div class="profile-field-label">Email</div><div class="profile-field-value" style="word-break:break-all;font-size:13px">${i.email}</div></div>
+    <div class="profile-field"><div class="profile-field-label">School</div><div class="profile-field-value">${i.school}</div></div>
+    <div class="profile-field"><div class="profile-field-label">Birthdate</div><div class="profile-field-value">${i.birthdate?formatDate(i.birthdate):'—'}</div></div>
+    <div class="profile-field"><div class="profile-field-label">OJT Start</div><div class="profile-field-value">${i.start?formatDate(i.start):'—'}</div></div>
+    <div class="profile-field"><div class="profile-field-label">OJT End</div><div class="profile-field-value">${i.end?formatDate(i.end):'—'}</div></div>
+    <div class="profile-field"><div class="profile-field-label">Required Hours</div><div class="profile-field-value">${i.hours?i.hours+' hrs':'—'}</div></div>
+    ${i.notes?`<div class="profile-field" style="grid-column:1/-1"><div class="profile-field-label">Notes</div><div class="profile-field-value">${i.notes}</div></div>`:''}`;
+
+  const attLogs = [...logs].filter(l=>l.internId===id).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  document.getElementById('profileAttCount').textContent = attLogs.length+' records';
+  document.getElementById('profileAttTable').innerHTML = attLogs.length
+    ? attLogs.map(l=>`<tr><td class="td-muted">${formatDate(l.date)}</td><td class="td-muted">${formatTime(l.timestamp)}</td><td><span class="badge badge-success" style="font-size:11px">Present</span></td></tr>`).join('')
+    : '<tr><td colspan="3"><div class="empty-state" style="padding:16px"><p>No attendance yet.</p></div></td></tr>';
+
+  const myTasks = tasks.filter(t=>{
+    const a=(t.assigned||'').toLowerCase();
+    return a==='all interns'||a.includes(i.name.toLowerCase())||a.includes(i.id.toLowerCase());
+  });
+  document.getElementById('profileTaskCount').textContent = myTasks.length+' tasks';
+  document.getElementById('profileTaskList').innerHTML = myTasks.length
+    ? myTasks.map(t=>{
+        const icon=t.status==='done'?'✅':t.status==='doing'?'🔄':'📌';
+        const bc  =t.status==='done'?'badge-success':t.status==='doing'?'badge-accent':'badge-warn';
+        const sl  =t.status==='done'?'Done':t.status==='doing'?'In Progress':'To Do';
+        return `<div class="ojt-task-item"><div class="ojt-task-icon">${icon}</div>
+          <div style="flex:1"><div class="ojt-task-title">${t.title}</div>
+          ${t.desc?`<div class="ojt-task-desc">${t.desc}</div>`:''}
+          <div class="ojt-task-meta"><span class="badge ${bc}" style="font-size:11px">${sl}</span></div></div></div>`;
+      }).join('')
+    : '<div class="empty-state" style="padding:16px"><p>No tasks assigned.</p></div>';
+
+  navigate('profile');
+}
+
+// ══════════════════════════════════════════════════
+// ADD / EDIT INTERN
+// ══════════════════════════════════════════════════
+function openAddModal(){
+  editingInternId=null;
+  ['fId','fName','fSchool','fEmail','fBirth','fCourse','fStart','fEnd','fHours','fNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fId').removeAttribute('disabled');
+  document.getElementById('modalTitle').textContent='Add New Intern';
+  document.getElementById('addModal').classList.add('open');
+}
+function closeAddModal(){ document.getElementById('addModal').classList.remove('open'); }
+
+function editIntern(id){
+  const i=interns.find(x=>x.id===id); if(!i) return;
+  editingInternId=id;
+  document.getElementById('fId').value=i.id; document.getElementById('fId').setAttribute('disabled',true);
+  document.getElementById('fName').value   =i.name;
+  document.getElementById('fSchool').value =i.school;
+  document.getElementById('fBirth').value  =i.birthdate||'';
+  document.getElementById('fEmail').value  =i.email;
+  document.getElementById('fCourse').value =i.course||'';
+  document.getElementById('fStart').value  =i.start||'';
+  document.getElementById('fEnd').value    =i.end||'';
+  document.getElementById('fHours').value  =i.hours||'';
+  document.getElementById('fNotes').value  =i.notes||'';
+  document.getElementById('modalTitle').textContent='Edit Intern';
+  document.getElementById('addModal').classList.add('open');
+}
+
+function saveIntern(){
+  const id    =document.getElementById('fId').value.trim().toUpperCase();
+  const name  =document.getElementById('fName').value.trim();
+  const school=document.getElementById('fSchool').value.trim();
+  const birth =document.getElementById('fBirth').value;
+  const email =document.getElementById('fEmail').value.trim();
+  const course=document.getElementById('fCourse').value.trim();
+  const start =document.getElementById('fStart').value;
+  const end   =document.getElementById('fEnd').value;
+  const hours =document.getElementById('fHours').value.trim();
+  const notes =document.getElementById('fNotes').value.trim();
+  if(!id||!name||!school||!email){showToast('Please fill all required fields.','error');return;}
+  const obj={id,name,school,birthdate:birth,email,course,start,end,hours,notes};
+  if(editingInternId){
+    const idx=interns.findIndex(x=>x.id===editingInternId);
+    interns[idx]=obj; showToast('Intern updated.','success');
+  } else {
+    if(interns.find(x=>x.id===id)){showToast('Intern ID already exists.','error');return;}
+    interns.push(obj); showToast('Intern added.','success');
+  }
+  save('interns'); closeAddModal(); renderInternTable();
+}
+
+function deleteIntern(id){
+  if(!confirm('Remove this intern? Their attendance logs will remain.')) return;
+  interns=interns.filter(x=>x.id!==id);
+  save('interns'); renderInternTable(); showToast('Intern removed.','success');
+}
+
+// ══════════════════════════════════════════════════
+// ATTENDANCE LOG
+// ══════════════════════════════════════════════════
+function renderLogTable(){
+  const q=(document.getElementById('logSearch')?.value||'').toLowerCase();
+  const date=document.getElementById('logDate')?.value||'';
+  let f=[...logs].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  if(date) f=f.filter(l=>l.date===date);
+  if(q)    f=f.filter(l=>l.name.toLowerCase().includes(q)||l.school.toLowerCase().includes(q)||l.internId.toLowerCase().includes(q));
+  document.getElementById('logTable').innerHTML = f.length
+    ? f.map(l=>`<tr>
+        <td><span class="badge badge-accent">${l.internId}</span></td>
+        <td class="td-name">${l.name}</td><td class="td-muted">${l.school}</td>
+        <td class="td-muted" style="font-size:12.5px">${l.email}</td>
+        <td class="td-muted">${formatDate(l.date)}</td>
+        <td class="td-muted">${formatTime(l.timestamp)}</td>
+        <td><span class="badge badge-success">Present</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📋</div><p>No records found.</p></div></td></tr>';
+}
+function clearTodayLogs(){
+  if(!confirm('Clear all attendance logs for today?')) return;
+  logs=logs.filter(l=>l.date!==today()); save('logs'); renderLogTable(); showToast("Today's logs cleared.",'success');
+}
+
+// ══════════════════════════════════════════════════
+// TASK BOARD
+// ══════════════════════════════════════════════════
+function renderTasks(){
+  const cols={todo:[],doing:[],done:[]};
+  tasks.forEach(t=>{if(cols[t.status])cols[t.status].push(t);});
+  ['todo','doing','done'].forEach(status=>{
+    document.getElementById('count-'+status).textContent=cols[status].length;
+    document.getElementById('col-'+status).innerHTML=cols[status].length
+      ? cols[status].map(t=>`
+          <div class="task-card">
+            <div class="task-card-title">${t.title}</div>
+            ${t.desc?`<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">${t.desc}</div>`:''}
+            <div class="task-card-meta">
+              <span class="badge ${t.priority==='high'?'badge-warn':'badge-accent'}" style="font-size:11px">
+                ${t.priority==='high'?'⚡ High':t.priority==='low'?'🔻 Low':'• Normal'}</span>
+              ${t.assigned?`<span style="font-size:11.5px;color:var(--text-dim)">👤 ${t.assigned}</span>`:''}
+              <span style="font-size:11px;color:var(--text-dim);margin-left:auto">${formatDate(t.date)}</span>
+            </div>
+            <div class="task-card-actions">
+              ${status!=='todo'?`<button class="task-btn" onclick="moveTask('${t.id}','back')">← Back</button>`:''}
+              ${status!=='done'?`<button class="task-btn" onclick="moveTask('${t.id}','next')">Next →</button>`:''}
+              <button class="task-btn" onclick="editTask('${t.id}')">Edit</button>
+              <button class="task-btn del" onclick="deleteTask('${t.id}')">Delete</button>
+            </div>
+          </div>`).join('')
+      : `<div style="text-align:center;color:var(--text-dim);padding:20px;font-size:13px">No tasks here.</div>`;
+  });
+}
+function moveTask(id,dir){
+  const t=tasks.find(x=>x.id===id); if(!t) return;
+  const o=['todo','doing','done'],i=o.indexOf(t.status);
+  if(dir==='next'&&i<2)t.status=o[i+1];
+  if(dir==='back'&&i>0)t.status=o[i-1];
+  save('tasks'); renderTasks();
+}
+function deleteTask(id){
+  if(!confirm('Delete this task?')) return;
+  tasks=tasks.filter(x=>x.id!==id); save('tasks'); renderTasks(); showToast('Task deleted.','success');
+}
+function openAddTaskModal(){
+  editingTaskId=null;
+  ['tTitle','tDesc','tAssigned'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tPriority').value='normal';
+  document.getElementById('tStatus').value='todo';
+  document.getElementById('taskModalTitle').textContent='Add Task';
+  document.getElementById('addTaskModal').classList.add('open');
+}
+function editTask(id){
+  const t=tasks.find(x=>x.id===id); if(!t) return;
+  editingTaskId=id;
+  document.getElementById('tTitle').value   =t.title;
+  document.getElementById('tDesc').value    =t.desc||'';
+  document.getElementById('tPriority').value=t.priority;
+  document.getElementById('tStatus').value  =t.status;
+  document.getElementById('tAssigned').value=t.assigned||'';
+  document.getElementById('taskModalTitle').textContent='Edit Task';
+  document.getElementById('addTaskModal').classList.add('open');
+}
+function closeAddTaskModal(){
+  document.getElementById('addTaskModal').classList.remove('open');
+  editingTaskId=null;
+}
+function saveTask(){
+  const title=document.getElementById('tTitle').value.trim();
+  const desc =document.getElementById('tDesc').value.trim();
+  const prio =document.getElementById('tPriority').value;
+  const stat =document.getElementById('tStatus').value;
+  const asgn =document.getElementById('tAssigned').value.trim();
+  if(!title){showToast('Task title is required.','error');return;}
+  if(editingTaskId){
+    const t=tasks.find(x=>x.id===editingTaskId);
+    Object.assign(t,{title,desc,priority:prio,status:stat,assigned:asgn});
+    showToast('Task updated.','success');
+  } else {
+    tasks.push({id:uid(),title,desc,priority:prio,status:stat,assigned:asgn,date:today()});
+    showToast('Task added.','success');
+  }
+  save('tasks'); closeAddTaskModal(); renderTasks();
+}
+
+// ══════════════════════════════════════════════════
+// CALENDAR
+// ══════════════════════════════════════════════════
+let calYear=new Date().getFullYear(), calMonth=new Date().getMonth(), calSelectedDate=null;
+const CAL_DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const CAL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function calShift(d){calMonth+=d;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+function calGoToday(){calYear=new Date().getFullYear();calMonth=new Date().getMonth();calSelectedDate=null;renderCalendar();}
+
+function buildCalMap(y,m){
+  const map={};
+  function add(ds,ev){if(!map[ds])map[ds]=[];map[ds].push(ev);}
+  tasks.forEach(t=>{if(t.date)add(t.date,{type:'task',label:t.title,sub:t.status==='done'?'Done':t.status==='doing'?'In Progress':'To Do'});});
+  interns.forEach(i=>{
+    if(!i.birthdate)return;
+    const[,bm,bd]=i.birthdate.split('-').map(Number);
+    const ds=`${y}-${String(bm).padStart(2,'0')}-${String(bd).padStart(2,'0')}`;
+    const age=y-parseInt(i.birthdate.split('-')[0]);
+    add(ds,{type:'bday',label:'🎂 '+i.name,sub:'Turns '+age+' this year'});
+  });
+  const cbd={};
+  logs.forEach(l=>{if(!cbd[l.date])cbd[l.date]=[];cbd[l.date].push(l.name);});
+  Object.entries(cbd).forEach(([ds,names])=>{
+    const u=[...new Set(names)];
+    add(ds,{type:'checkin',label:'✓ '+u.length+' check-in'+(u.length>1?'s':''),sub:u.slice(0,2).join(', ')+(u.length>2?` +${u.length-2} more`:'')});
+  });
+  return map;
+}
+
+function renderCalendar(){
+  document.getElementById('calMonthLabel').textContent=`${CAL_MONTHS[calMonth]} ${calYear}`;
+  const map=buildCalMap(calYear,calMonth);
+  const todayStr=today(), fd=new Date(calYear,calMonth,1).getDay(), dim=new Date(calYear,calMonth+1,0).getDate(), pd=new Date(calYear,calMonth,0).getDate();
+  let html=CAL_DAYS.map(d=>`<div class="cal-day-header">${d}</div>`).join('');
+  for(let i=fd-1;i>=0;i--){
+    const py=calMonth===0?calYear-1:calYear, pm=calMonth===0?11:calMonth-1;
+    html+=cellHTML(pd-i,`${py}-${String(pm+1).padStart(2,'0')}-${String(pd-i).padStart(2,'0')}`,map,true);
+  }
+  for(let d=1;d<=dim;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    html+=cellHTML(d,ds,map,false,ds===todayStr,ds===calSelectedDate);
+  }
+  const tot=fd+dim, rem=tot%7===0?0:7-tot%7;
+  for(let d=1;d<=rem;d++){
+    const ny=calMonth===11?calYear+1:calYear,nm=calMonth===11?0:calMonth+1;
+    html+=cellHTML(d,`${ny}-${String(nm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,map,true);
+  }
+  document.getElementById('calGrid').innerHTML=html;
+  if(calSelectedDate)renderDayPanel(calSelectedDate,map);
+}
+
+function cellHTML(day,ds,map,other,isToday=false,isSel=false){
+  const evs=map[ds]||[], shown=evs.slice(0,2), extra=evs.length-2;
+  const cls=['cal-cell',other?'other-month':'',isToday?'today':''].filter(Boolean).join(' ');
+  const selStyle=isSel?'border-color:var(--accent-light);background:var(--surface3);':'';
+  return `<div class="${cls}" style="${selStyle}" onclick="selectCalDay('${ds}')">
+    <div class="cal-cell-num">${day}</div>
+    <div class="cal-events">${shown.map(e=>`<div class="cal-event ${e.type}">${e.label}</div>`).join('')}${extra>0?`<div class="cal-more">+${extra} more</div>`:''}</div>
+  </div>`;
+}
+function selectCalDay(ds){calSelectedDate=ds;const map=buildCalMap(calYear,calMonth);renderCalendar();renderDayPanel(ds,map);}
+function renderDayPanel(ds,map){
+  const[y,m,d]=ds.split('-').map(Number);
+  document.getElementById('dayPanelDate').textContent=new Date(y,m-1,d).toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const evs=map[ds]||[];
+  document.getElementById('dayPanelEvents').innerHTML=evs.length
+    ?evs.map(e=>{
+        const ic=e.type==='task'?'icon-task':e.type==='bday'?'icon-bday':'icon-checkin';
+        const em=e.type==='task'?'📋':e.type==='bday'?'🎂':'✅';
+        const tl=e.type==='task'?'Task':e.type==='bday'?'Birthday':'Attendance';
+        return `<div class="day-event-item"><div class="day-event-icon ${ic}">${em}</div>
+          <div><div class="day-event-title">${e.label.replace(/^[🎂✓✅]\s*/,'')}</div>
+          <div class="day-event-sub">${tl}${e.sub?' · '+e.sub:''}</div></div></div>`;
+      }).join('')
+    :`<div class="empty-state" style="padding:20px 0"><div class="empty-state-icon">🌿</div><p>Nothing scheduled.</p></div>`;
+}
+
+// ══════════════════════════════════════════════════
+// DTR
+// ══════════════════════════════════════════════════
+const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function populateDtrSelect(){
+  const sel=document.getElementById('dtrInternSelect'), cur=sel.value;
+  sel.innerHTML='<option value="">— Select Intern —</option>'+interns.map(i=>`<option value="${i.id}"${i.id===cur?' selected':''}>${i.name} (${i.id})</option>`).join('');
+}
+function buildDtrHTML(intern,year,month,inCharge,oArr,oDep,sat){
+  const dim=new Date(year,month+1,0).getDate(), ms=MONTH_NAMES[month], yr=year;
+  const mk=`${year}-${String(month+1).padStart(2,'0')}`;
+  const il={};
+  logs.filter(l=>l.internId===intern.id&&l.date.startsWith(mk)).forEach(l=>{
+    const day=parseInt(l.date.split('-')[2]);
+    if(!il[day])il[day]=[];il[day].push(l);
+  });
+  function tc(day){
+    const dl=il[day]; if(!dl||!dl.length)return{arr:'',dep:''};
+    const ts=dl.map(l=>new Date(l.timestamp)).sort((a,b)=>a-b);
+    const a=ts[0].toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',hour12:true});
+    const d=ts[ts.length-1].toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',hour12:true});
+    return{arr:a.replace(':00 ',''),dep:d===a?'':d.replace(':00 ','')};
+  }
+  let rows='';
+  for(let d=1;d<=31;d++){
+    const{arr,dep}=d<=dim?tc(d):{arr:'',dep:''};
+    rows+=`<tr style="${d>dim?'visibility:hidden':''}">
+      <td style="font-weight:bold;width:16px">${d}</td>
+      <td>${arr}</td><td>${dep}</td><td></td><td></td><td></td><td></td></tr>`;
+  }
+  const mr=`${ms.substring(0,3).toUpperCase()} 1-${dim} ${yr}`;
+  const s=`<div class="dtr-single">
+    <div class="dtr-form-no">Civil Service Form No. 48</div>
+    <div class="dtr-title">DAILY TIME RECORD</div>
+    <div class="dtr-subtitle">— oOo —</div>
+    <div class="dtr-name-row">${intern.name.toUpperCase()}</div>
+    <div class="dtr-name-label">(Name)</div>
+    <div class="dtr-info-row"><span>For the month of</span><span class="dtr-info-val">${mr}</span></div>
+    <div class="dtr-info-row"><span>Official hours for arrival</span><span class="dtr-info-val">${oArr}</span><span>Regular days</span></div>
+    <div class="dtr-info-row"><span>and departure</span><span class="dtr-info-val">${oDep}</span><span>Saturdays</span><span class="dtr-info-val">${sat}</span></div>
+    <table class="dtr-table"><thead>
+      <tr><th rowspan="2" style="width:16px">Day</th><th colspan="2">A.M.</th><th colspan="2">P.M.</th><th colspan="2">Undertime</th></tr>
+      <tr><th>Arrival</th><th>Depar-<br>ture</th><th>Arrival</th><th>Depar-<br>ture</th><th>Hours</th><th>Min-<br>utes</th></tr>
+    </thead><tbody>${rows}
+      <tr class="dtr-total-row"><td colspan="5" style="text-align:right;padding-right:4px">Total</td><td></td><td></td></tr>
+    </tbody></table>
+    <div class="dtr-footer">
+      <div class="dtr-cert">I certify on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure from office.</div>
+      <div style="margin-bottom:20px"><div style="border-top:1px solid #000;margin-top:20px;font-size:9px;text-align:center;padding-top:2px">(Signature)</div></div>
+      <div class="dtr-verified">VERIFIED as to the prescribed office hours:</div>
+      <div class="dtr-sig-block"><div class="dtr-sig-name">${inCharge.toUpperCase()}</div><div class="dtr-sig-label">In Charge</div></div>
+    </div>
+  </div>`;
+  return `<div class="dtr-wrap"><div class="dtr-pair">${s}${s}</div></div>`;
+}
+function renderDtrPreview(){
+  const id=document.getElementById('dtrInternSelect').value, mv=document.getElementById('dtrMonth').value;
+  if(!id||!mv){document.getElementById('dtrPreviewWrap').style.display='none';return;}
+  const intern=interns.find(x=>x.id===id); if(!intern)return;
+  const[y,m]=mv.split('-').map(Number);
+  const ic=document.getElementById('dtrInCharge').value||'IN CHARGE';
+  const oa=document.getElementById('dtrOfficialArrival').value||'8:00 AM';
+  const od=document.getElementById('dtrOfficialDepart').value||'5:00 PM';
+  const sat=document.getElementById('dtrSaturdays').value||'Saturdays';
+  document.getElementById('dtrPreviewContainer').innerHTML=buildDtrHTML(intern,y,m-1,ic,oa,od,sat);
+  document.getElementById('dtrPreviewWrap').style.display='block';
+  document.getElementById('dtrPreviewLabel').textContent=`${intern.name} — ${MONTH_NAMES[m-1]} ${y}`;
+}
+function printDtr(){
+  const id=document.getElementById('dtrInternSelect').value, mv=document.getElementById('dtrMonth').value;
+  if(!id||!mv){showToast('Select an intern and month first.','error');return;}
+  const intern=interns.find(x=>x.id===id); if(!intern)return;
+  const[y,m]=mv.split('-').map(Number);
+  const ic=document.getElementById('dtrInCharge').value||'IN CHARGE';
+  const oa=document.getElementById('dtrOfficialArrival').value||'8:00 AM';
+  const od=document.getElementById('dtrOfficialDepart').value||'5:00 PM';
+  const sat=document.getElementById('dtrSaturdays').value||'Saturdays';
+  let pa=document.getElementById('dtrPrintArea');
+  if(!pa){pa=document.createElement('div');pa.id='dtrPrintArea';document.body.appendChild(pa);}
+  pa.innerHTML=buildDtrHTML(intern,y,m-1,ic,oa,od,sat);
+  window.print();
+}
+
+// ══════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  document.getElementById('toastIcon').textContent=type==='error'?'✕':'✓';
+  t.className='toast show '+type;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(bd=>{
+  bd.addEventListener('click',e=>{if(e.target===bd)bd.classList.remove('open');});
+});
+document.getElementById('adminLogin').addEventListener('click',e=>{
+  if(e.target===document.getElementById('adminLogin'))closeAdminLogin();
+});
+</script>
+</body>
+</html>
