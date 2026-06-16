@@ -84,3 +84,13 @@ admin123
 - Google Apps Script deployment must be updated if you change `google-apps-script.gs`.
 - The website will not save to Google Sheets until you paste the Web App URL into `script.js`.
 - This is a simple admin password system for testing. For production, use a stronger authentication method.
+
+## Update in this version
+- Intern/OJT dashboard now includes Activity Board, Calendar, and Print DTR.
+- Interns can move their assigned tasks between To Do, Doing, and Done.
+- Intern view shows only records connected to the Intern ID entered in Check In & Tasks.
+
+## Photo update
+This version adds a Profile Image field for each intern. Photos are resized in the browser and saved as a `photo` column in the `Interns` sheet.
+
+After uploading the new website files to GitHub, also replace your Google Apps Script code with the included `google-apps-script.gs`, save it, and deploy a new Web App version. The script will automatically add the `photo` column to your existing `Interns` sheet when data is saved.

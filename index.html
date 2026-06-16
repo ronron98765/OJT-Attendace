@@ -11,7 +11,7 @@
 </head>
 <body>
   <div id="setupNotice" class="setup-notice">
-    <strong>Setup needed:</strong> Open <code>script.js</code> and replace <code>https://script.google.com/macros/s/AKfycbza0kc1vlBbJE0aYW6DUNtkfNLr6vi-KLAa_yJ8NhrKHfivNCc2h3cf-Yq68YQlR8aV/exec</code> with your deployed Google Apps Script Web App URL.
+    <strong>Setup needed:</strong> Open <code>script.js</code> and replace <code>PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE</code> with your deployed Google Apps Script Web App URL.
   </div>
 
   <div id="roleGate">
@@ -198,6 +198,7 @@
         <div class="form-group"><label class="form-label">School *</label><input type="text" class="form-input" id="fSchool" placeholder="University of ..." /></div>
         <div class="form-group"><label class="form-label">Birthdate</label><input type="date" class="form-input" id="fBirth" /></div>
         <div class="form-group full"><label class="form-label">Email *</label><input type="email" class="form-input" id="fEmail" placeholder="intern@email.com" /></div>
+        <div class="form-group full"><label class="form-label">Profile Image</label><input type="file" class="form-input" id="fPhoto" accept="image/*" onchange="previewInternPhoto()" /><div id="photoPreview" class="photo-preview"><span>No photo selected</span></div><div class="td-muted" style="font-size:11.5px;margin-top:4px">Recommended: square photo. The system will resize it before saving.</div></div>
         <div class="form-group full"><label class="form-label">Course / Program</label><input type="text" class="form-input" id="fCourse" placeholder="e.g. BS Information Technology" /></div>
         <div class="form-group"><label class="form-label">OJT Start Date</label><input type="date" class="form-input" id="fStart" /></div>
         <div class="form-group"><label class="form-label">OJT End Date</label><input type="date" class="form-input" id="fEnd" /></div>

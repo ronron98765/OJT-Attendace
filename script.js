@@ -13,7 +13,11 @@ let calDate = new Date();
 
 const SIDEBAR_OJT = `
   <div class="nav-label">My Portal</div>
-  <div class="nav-item" onclick="navigate('checkin')">✓ Check In & Tasks</div>`;
+  <div class="nav-item" onclick="navigate('checkin')">✓ Check In & Tasks</div>
+  <div class="nav-item" onclick="navigate('tasks')">☑ Activity Board</div>
+  <div class="nav-label">Reports</div>
+  <div class="nav-item" onclick="navigate('calendar')">📅 Calendar</div>
+  <div class="nav-item" onclick="navigate('dtr')">🖨 Print DTR</div>`;
 const SIDEBAR_ADMIN = `
   <div class="nav-label">Admin</div>
   <div class="nav-item" onclick="navigate('dashboard')">▦ Dashboard</div>
@@ -29,6 +33,54 @@ function $(id){ return document.getElementById(id); }
 function uid(){ return Math.random().toString(36).slice(2,11); }
 function today(){ return new Date().toISOString().slice(0,10); }
 function escapeHtml(v){ return String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function avatarHtml(intern, cls='intern-avatar'){
+  const name = String(intern?.name || 'I');
+  const initial = escapeHtml(name.charAt(0).toUpperCase() || 'I');
+  const photo = intern?.photo || '';
+  if(photo) return `<div class="${cls}"><img src="${photo}" alt="${escapeHtml(name)} photo"></div>`;
+  return `<div class="${cls}">${initial}</div>`;
+}
+function tablePhotoHtml(intern){
+  const name = String(intern?.name || 'Intern');
+  return intern?.photo ? `<img class="table-photo" src="${intern.photo}" alt="${escapeHtml(name)} photo">` : `<div class="table-photo" style="display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--accent-light)">${escapeHtml(name.charAt(0).toUpperCase() || 'I')}</div>`;
+}
+function setPhotoPreview(dataUrl){
+  const box = $('photoPreview');
+  if(!box) return;
+  box.innerHTML = dataUrl ? `<img src="${dataUrl}" alt="Photo preview">` : '<span>No photo selected</span>';
+}
+function resizeImageFile(file, maxSize=420, quality=0.75){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read image file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Invalid image file.'));
+      img.onload = () => {
+        const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function previewInternPhoto(){
+  const file = $('fPhoto')?.files?.[0];
+  if(!file){ setPhotoPreview(''); return; }
+  try{ setPhotoPreview(await resizeImageFile(file)); }
+  catch(err){ showToast(err.message, 'error'); }
+}
+async function getSelectedPhotoData(existing=''){
+  const file = $('fPhoto')?.files?.[0];
+  if(!file) return existing || '';
+  return await resizeImageFile(file);
+}
 function formatDate(d){ return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}) : '—'; }
 function formatTime(ts){ return ts ? new Date(ts).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—'; }
 function calcAge(bdate){ if(!bdate) return null; const b=new Date(bdate), n=new Date(); let a=n.getFullYear()-b.getFullYear(); if(n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--; return a; }
@@ -67,13 +119,37 @@ async function loadAllData(showSuccess=false){
 function seedPreviewData(){
   if(interns.length) return;
   interns = [
-    {id:'INT-001',name:'Maria Santos',school:'University of the Philippines',birthdate:'2003-04-12',email:'maria.santos@example.com',course:'BS Computer Science',start:'2026-06-01',end:'2026-08-31',hours:'486',notes:''},
+    {id:'INT-001',name:'Maria Santos',school:'University of the Philippines',birthdate:'2003-04-12',email:'maria.santos@example.com',course:'BS Computer Science',start:'2026-06-01',end:'2026-08-31',hours:'486',notes:'',photo:''},
     {id:'INT-002',name:'Jose Reyes',school:'Ateneo de Davao University',birthdate:'2002-09-25',email:'jose.reyes@example.com',course:'BS Information Technology',start:'2026-06-01',end:'2026-08-31',hours:'486',notes:''}
   ];
   tasks = [
     {id:uid(),title:'Complete onboarding forms',desc:'Fill out all required OJT forms.',priority:'high',status:'todo',assigned:'All Interns',date:today()},
     {id:uid(),title:'Submit weekly report',desc:'Prepare first weekly accomplishment report.',priority:'normal',status:'doing',assigned:'INT-001',date:today()}
   ];
+}
+
+
+function taskIsForIntern(task, intern){
+  if(!intern) return false;
+  const assigned = String(task.assigned || 'All Interns').toLowerCase();
+  const name = String(intern.name || '').toLowerCase();
+  const id = String(intern.id || '').toLowerCase();
+  return assigned === 'all interns' || assigned.includes(name) || assigned.includes(id);
+}
+function visibleTasks(){
+  if(currentRole !== 'ojt') return tasks;
+  return foundIntern ? tasks.filter(t => taskIsForIntern(t, foundIntern)) : [];
+}
+function visibleLogs(){
+  if(currentRole !== 'ojt') return logs;
+  return foundIntern ? logs.filter(l => l.internId === foundIntern.id) : [];
+}
+function visibleInterns(){
+  if(currentRole !== 'ojt') return interns;
+  return foundIntern ? interns.filter(i => i.id === foundIntern.id) : [];
+}
+function requireInternLookupMessage(){
+  return '<div class="empty-state"><p>Please go to Check In & Tasks first and enter your Intern ID to view your own records.</p></div>';
 }
 
 function updateClock(){ $('clock').textContent = new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
@@ -115,7 +191,7 @@ function lookupIntern(){
   if(!foundIntern){ $('notFoundMsg').classList.add('visible'); return; }
   const now = new Date(), todayStr = today();
   const already = logs.find(l => l.internId === foundIntern.id && l.date === todayStr);
-  $('internAvatar').textContent = foundIntern.name.charAt(0).toUpperCase();
+  $('internAvatar').innerHTML = foundIntern.photo ? `<img src="${foundIntern.photo}" alt="${escapeHtml(foundIntern.name)} photo">` : escapeHtml(foundIntern.name.charAt(0).toUpperCase());
   $('internName').textContent = foundIntern.name; $('internIdDisplay').textContent = 'ID: ' + foundIntern.id;
   $('internSchool').textContent = foundIntern.school; $('internEmail').textContent = foundIntern.email;
   $('internTime').textContent = formatTime(now.toISOString()); $('internDate').textContent = formatDate(todayStr);
@@ -148,18 +224,19 @@ function renderDashboard(){
   $('totalInterns').textContent=interns.length; $('presentToday').textContent=uniqueToday; $('totalLogs').textContent=logs.length; $('activeTasks').textContent=tasks.filter(t=>t.status!=='done').length;
   const recent=[...logs].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,6);
   $('recentLogTable').innerHTML = recent.length ? recent.map(l=>`<tr><td class="td-name">${escapeHtml(l.name)}</td><td>${escapeHtml(l.school)}</td><td>${formatTime(l.timestamp)}</td></tr>`).join('') : `<tr><td colspan="3" class="td-muted">No check-ins yet.</td></tr>`;
-  $('internListDash').innerHTML = interns.slice(0,6).map(i=>`<tr><td class="td-name">${escapeHtml(i.name)}</td><td>${escapeHtml(i.id)}</td><td>${escapeHtml(i.school)}</td><td><button class="btn btn-outline btn-xs" onclick="openProfile('${escapeHtml(i.id)}')">View</button></td></tr>`).join('') || `<tr><td colspan="4" class="td-muted">No interns yet.</td></tr>`;
+  $('internListDash').innerHTML = interns.slice(0,6).map(i=>`<tr><td class="td-name"><div style="display:flex;align-items:center;gap:10px">${tablePhotoHtml(i)}<span>${escapeHtml(i.name)}</span></div></td><td>${escapeHtml(i.id)}</td><td>${escapeHtml(i.school)}</td><td><button class="btn btn-outline btn-xs" onclick="openProfile('${escapeHtml(i.id)}')">View</button></td></tr>`).join('') || `<tr><td colspan="4" class="td-muted">No interns yet.</td></tr>`;
 }
 function renderInternTable(){
   const q = ($('internSearch')?.value || '').toLowerCase();
   const rows = interns.filter(i => [i.id,i.name,i.school,i.email].join(' ').toLowerCase().includes(q));
-  $('internTable').innerHTML = rows.map(i => `<tr><td>${escapeHtml(i.id)}</td><td class="td-name">${escapeHtml(i.name)}</td><td>${escapeHtml(i.school)}</td><td>${formatDate(i.birthdate)}</td><td>${escapeHtml(i.email)}</td><td><button class="btn btn-outline btn-xs" onclick="openProfile('${escapeHtml(i.id)}')">View</button> <button class="btn btn-outline btn-xs" onclick="editIntern('${escapeHtml(i.id)}')">Edit</button> <button class="btn btn-outline btn-xs danger-text" onclick="deleteIntern('${escapeHtml(i.id)}')">Delete</button></td></tr>`).join('') || `<tr><td colspan="6" class="td-muted">No interns found.</td></tr>`;
+  $('internTable').innerHTML = rows.map(i => `<tr><td>${escapeHtml(i.id)}</td><td class="td-name"><div style="display:flex;align-items:center;gap:10px">${tablePhotoHtml(i)}<span>${escapeHtml(i.name)}</span></div></td><td>${escapeHtml(i.school)}</td><td>${formatDate(i.birthdate)}</td><td>${escapeHtml(i.email)}</td><td><button class="btn btn-outline btn-xs" onclick="openProfile('${escapeHtml(i.id)}')">View</button> <button class="btn btn-outline btn-xs" onclick="editIntern('${escapeHtml(i.id)}')">Edit</button> <button class="btn btn-outline btn-xs danger-text" onclick="deleteIntern('${escapeHtml(i.id)}')">Delete</button></td></tr>`).join('') || `<tr><td colspan="6" class="td-muted">No interns found.</td></tr>`;
 }
-function openAddModal(){ editingInternId=null; $('modalTitle').textContent='Add New Intern'; ['fId','fName','fSchool','fBirth','fEmail','fCourse','fStart','fEnd','fHours','fNotes'].forEach(id=>$(id).value=''); $('fId').disabled=false; $('addModal').classList.add('open'); }
+function openAddModal(){ editingInternId=null; $('modalTitle').textContent='Add New Intern'; ['fId','fName','fSchool','fBirth','fEmail','fCourse','fStart','fEnd','fHours','fNotes'].forEach(id=>$(id).value=''); if($('fPhoto')) $('fPhoto').value=''; setPhotoPreview(''); $('fId').disabled=false; $('addModal').classList.add('open'); }
 function closeAddModal(){ $('addModal').classList.remove('open'); }
-function editIntern(id){ const i=interns.find(x=>x.id===id); if(!i) return; editingInternId=id; $('modalTitle').textContent='Edit Intern'; $('fId').value=i.id; $('fId').disabled=true; $('fName').value=i.name||''; $('fSchool').value=i.school||''; $('fBirth').value=i.birthdate||''; $('fEmail').value=i.email||''; $('fCourse').value=i.course||''; $('fStart').value=i.start||''; $('fEnd').value=i.end||''; $('fHours').value=i.hours||''; $('fNotes').value=i.notes||''; $('addModal').classList.add('open'); }
+function editIntern(id){ const i=interns.find(x=>x.id===id); if(!i) return; editingInternId=id; $('modalTitle').textContent='Edit Intern'; $('fId').value=i.id; $('fId').disabled=true; $('fName').value=i.name||''; $('fSchool').value=i.school||''; $('fBirth').value=i.birthdate||''; $('fEmail').value=i.email||''; $('fCourse').value=i.course||''; $('fStart').value=i.start||''; $('fEnd').value=i.end||''; $('fHours').value=i.hours||''; $('fNotes').value=i.notes||''; if($('fPhoto')) $('fPhoto').value=''; setPhotoPreview(i.photo || ''); $('addModal').classList.add('open'); }
 async function saveIntern(){
-  const intern = {id:$('fId').value.trim().toUpperCase(),name:$('fName').value.trim(),school:$('fSchool').value.trim(),birthdate:$('fBirth').value,email:$('fEmail').value.trim(),course:$('fCourse').value.trim(),start:$('fStart').value,end:$('fEnd').value,hours:$('fHours').value,notes:$('fNotes').value.trim()};
+  const existing = interns.find(i => i.id === (editingInternId || $('fId').value.trim().toUpperCase())) || {};
+  const intern = {id:$('fId').value.trim().toUpperCase(),name:$('fName').value.trim(),school:$('fSchool').value.trim(),birthdate:$('fBirth').value,email:$('fEmail').value.trim(),course:$('fCourse').value.trim(),start:$('fStart').value,end:$('fEnd').value,hours:$('fHours').value,notes:$('fNotes').value.trim(),photo: await getSelectedPhotoData(existing.photo)};
   if(!intern.id || !intern.name || !intern.school || !intern.email){ showToast('Please complete required fields.','error'); return; }
   if(!editingInternId && interns.some(i=>i.id===intern.id)){ showToast('Intern ID already exists.','error'); return; }
   try{ await api(editingInternId?'updateIntern':'addIntern',{intern}); const idx=interns.findIndex(i=>i.id===intern.id); if(idx>=0) interns[idx]=intern; else interns.push(intern); closeAddModal(); renderCurrentPage(); showToast('Intern saved','success'); }
@@ -173,7 +250,7 @@ async function deleteIntern(id){
 function openProfile(id){ selectedProfileId=id; navigate('profile'); }
 function renderProfile(id){
   const i=interns.find(x=>x.id===id); if(!i){ $('profileHeader').innerHTML='<div class="td-muted">No intern selected.</div>'; return; }
-  $('profileHeader').innerHTML = `<div class="profile-avatar">${escapeHtml(i.name.charAt(0).toUpperCase())}</div><div><div class="profile-name">${escapeHtml(i.name)}</div><div class="profile-meta"><span class="badge badge-accent">${escapeHtml(i.id)}</span><span class="badge badge-purple">${escapeHtml(i.school)}</span></div></div>`;
+  $('profileHeader').innerHTML = `${avatarHtml(i, 'profile-avatar')}<div><div class="profile-name">${escapeHtml(i.name)}</div><div class="profile-meta"><span class="badge badge-accent">${escapeHtml(i.id)}</span><span class="badge badge-purple">${escapeHtml(i.school)}</span></div></div>`;
   const fields = [['Email',i.email],['Course',i.course],['Birthdate',formatDate(i.birthdate)],['Age',calcAge(i.birthdate) ?? '—'],['Start Date',formatDate(i.start)],['End Date',formatDate(i.end)],['Required Hours',i.hours || '—'],['Notes',i.notes || '—']];
   $('profileGrid').innerHTML = fields.map(f=>`<div class="profile-field"><div class="profile-field-label">${f[0]}</div><div class="profile-field-value">${escapeHtml(f[1])}</div></div>`).join('');
   const myLogs=logs.filter(l=>l.internId===i.id).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)); $('profileAttCount').textContent = myLogs.length + ' records';
@@ -202,15 +279,29 @@ async function saveTask(){
   catch(err){ showToast(err.message,'error'); }
 }
 async function deleteTask(id){ if(!confirm('Delete this task?')) return; try{ await api('deleteTask',{id}); tasks=tasks.filter(t=>t.id!==id); renderTasks(); showToast('Task deleted','success'); }catch(err){ showToast(err.message,'error'); } }
-async function setTaskStatus(id,status){ const t=tasks.find(x=>x.id===id); if(!t) return; t.status=status; try{ await api('updateTask',{task:t}); renderTasks(); showToast('Task updated','success'); }catch(err){ showToast(err.message,'error'); } }
+async function setTaskStatus(id,status){ const t=tasks.find(x=>x.id===id); if(!t) return; if(currentRole==='ojt' && !taskIsForIntern(t, foundIntern)){ showToast('You can only move tasks assigned to you.','error'); return; } t.status=status; try{ await api('updateTask',{task:t}); renderTasks(); showToast('Task updated','success'); }catch(err){ showToast(err.message,'error'); } }
 function renderTasks(){
-  ['todo','doing','done'].forEach(status=>{ const list=tasks.filter(t=>t.status===status); $('count-'+status).textContent=list.length; $('col-'+status).innerHTML=list.map(t=>taskCardHtml(t)).join('') || '<div class="empty-state"><p>No tasks.</p></div>'; });
+  const taskSource = visibleTasks();
+  const addBtn = document.querySelector('#page-tasks .page-heading .btn-primary');
+  if(addBtn) addBtn.style.display = currentRole === 'admin' ? '' : 'none';
+  if(currentRole === 'ojt' && !foundIntern){
+    ['todo','doing','done'].forEach(status=>{ $('count-'+status).textContent='0'; $('col-'+status).innerHTML=requireInternLookupMessage(); });
+    return;
+  }
+  ['todo','doing','done'].forEach(status=>{
+    const list = taskSource.filter(t=>t.status===status);
+    $('count-'+status).textContent = list.length;
+    $('col-'+status).innerHTML = list.map(t=>taskCardHtml(t)).join('') || '<div class="empty-state"><p>No tasks.</p></div>';
+  });
 }
 function taskCardHtml(t){
-  return `<div class="task-card"><div class="task-card-title">${escapeHtml(t.title)}</div>${t.desc?`<div class="task-card-desc">${escapeHtml(t.desc)}</div>`:''}<div class="task-card-meta"><span class="badge ${t.priority==='high'?'badge-warn':'badge-accent'}">${escapeHtml(t.priority||'normal')}</span><span class="td-muted">${escapeHtml(t.assigned||'All Interns')}</span><span class="td-muted">${formatDate(t.date)}</span></div><div class="task-card-actions"><button class="task-btn" onclick="editTask('${escapeHtml(t.id)}')">Edit</button>${t.status!=='todo'?`<button class="task-btn" onclick="setTaskStatus('${escapeHtml(t.id)}','todo')">To Do</button>`:''}${t.status!=='doing'?`<button class="task-btn" onclick="setTaskStatus('${escapeHtml(t.id)}','doing')">Doing</button>`:''}${t.status!=='done'?`<button class="task-btn" onclick="setTaskStatus('${escapeHtml(t.id)}','done')">Done</button>`:''}<button class="task-btn del" onclick="deleteTask('${escapeHtml(t.id)}')">Delete</button></div></div>`;
+  const statusButtons = `${t.status!=='todo'?`<button class="task-btn" onclick="setTaskStatus('${escapeHtml(t.id)}','todo')">To Do</button>`:''}${t.status!=='doing'?`<button class="task-btn" onclick="setTaskStatus('${escapeHtml(t.id)}','doing')">Doing</button>`:''}${t.status!=='done'?`<button class="task-btn" onclick="setTaskStatus('${escapeHtml(t.id)}','done')">Done</button>`:''}`;
+  const adminButtons = currentRole === 'admin' ? `<button class="task-btn" onclick="editTask('${escapeHtml(t.id)}')">Edit</button>${statusButtons}<button class="task-btn del" onclick="deleteTask('${escapeHtml(t.id)}')">Delete</button>` : statusButtons;
+  return `<div class="task-card"><div class="task-card-title">${escapeHtml(t.title)}</div>${t.desc?`<div class="task-card-desc">${escapeHtml(t.desc)}</div>`:''}<div class="task-card-meta"><span class="badge ${t.priority==='high'?'badge-warn':'badge-accent'}">${escapeHtml(t.priority||'normal')}</span><span class="td-muted">${escapeHtml(t.assigned||'All Interns')}</span><span class="td-muted">${formatDate(t.date)}</span></div><div class="task-card-actions">${adminButtons}</div></div>`;
 }
 
 function renderCalendar(){
+  if(currentRole === 'ojt' && !foundIntern){ $('calGrid').innerHTML = requireInternLookupMessage(); $('calMonthLabel').textContent = 'My Calendar'; $('dayPanelDate').textContent='Intern ID required'; $('dayPanelEvents').innerHTML=requireInternLookupMessage(); return; }
   const y=calDate.getFullYear(), m=calDate.getMonth(); $('calMonthLabel').textContent = calDate.toLocaleDateString('en-PH',{month:'long',year:'numeric'});
   const start=new Date(y,m,1), end=new Date(y,m+1,0); const first=start.getDay(); const days=end.getDate();
   const headers=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cal-day-header">${d}</div>`).join(''); let cells='';
@@ -222,16 +313,28 @@ function renderCalendar(){
   $('calGrid').innerHTML=headers+cells;
 }
 function getEventsForDate(date){
-  const ev=[]; tasks.filter(t=>t.date===date).forEach(t=>ev.push({type:'task',title:t.title,sub:t.assigned}));
-  logs.filter(l=>l.date===date).forEach(l=>ev.push({type:'checkin',title:l.name+' checked in',sub:formatTime(l.timestamp)}));
-  const md=date.slice(5); interns.filter(i=>i.birthdate && i.birthdate.slice(5)===md).forEach(i=>ev.push({type:'bday',title:i.name+' birthday',sub:i.school})); return ev;
+  const ev=[]; visibleTasks().filter(t=>t.date===date).forEach(t=>ev.push({type:'task',title:t.title,sub:t.assigned}));
+  visibleLogs().filter(l=>l.date===date).forEach(l=>ev.push({type:'checkin',title:l.name+' checked in',sub:formatTime(l.timestamp)}));
+  const md=date.slice(5); visibleInterns().filter(i=>i.birthdate && i.birthdate.slice(5)===md).forEach(i=>ev.push({type:'bday',title:i.name+' birthday',sub:i.school})); return ev;
 }
 function selectCalendarDay(date){ const ev=getEventsForDate(date); $('dayPanelDate').textContent=formatDate(date); $('dayPanelEvents').innerHTML= ev.map(e=>`<div class="day-event-item"><div class="day-event-icon">${e.type==='task'?'📌':e.type==='bday'?'🎂':'✅'}</div><div><div class="day-event-title">${escapeHtml(e.title)}</div><div class="day-event-sub">${escapeHtml(e.sub||'')}</div></div></div>`).join('') || '<div class="empty-state"><p>No events for this day.</p></div>'; }
 function calShift(n){ calDate.setMonth(calDate.getMonth()+n); renderCalendar(); }
 function calGoToday(){ calDate=new Date(); renderCalendar(); selectCalendarDay(today()); }
 
-function populateDtrSelect(){ $('dtrInternSelect').innerHTML = '<option value="">— Select Intern —</option>' + interns.map(i=>`<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)} (${escapeHtml(i.id)})</option>`).join(''); }
+function populateDtrSelect(){
+  const select = $('dtrInternSelect');
+  if(currentRole === 'ojt'){
+    if(!foundIntern){ select.innerHTML = '<option value="">Enter Intern ID first</option>'; select.disabled = true; return; }
+    select.disabled = true;
+    select.innerHTML = `<option value="${escapeHtml(foundIntern.id)}">${escapeHtml(foundIntern.name)} (${escapeHtml(foundIntern.id)})</option>`;
+    select.value = foundIntern.id;
+    return;
+  }
+  select.disabled = false;
+  select.innerHTML = '<option value="">— Select Intern —</option>' + interns.map(i=>`<option value="${escapeHtml(i.id)}">${escapeHtml(i.name)} (${escapeHtml(i.id)})</option>`).join('');
+}
 function renderDtrPreview(){
+  if(currentRole === 'ojt' && !foundIntern){ $('dtrPreviewWrap').style.display='block'; $('dtrPreviewLabel').textContent='Intern ID required'; $('dtrPreviewContainer').innerHTML=requireInternLookupMessage(); return; }
   const id=$('dtrInternSelect').value, ym=$('dtrMonth').value; if(!id || !ym){ $('dtrPreviewWrap').style.display='none'; return; }
   const intern=interns.find(i=>i.id===id); if(!intern) return; const html=makeDtrHtml(intern,ym); $('dtrPreviewContainer').innerHTML=html; $('dtrPreviewLabel').textContent=`${intern.name} — ${ym}`; $('dtrPreviewWrap').style.display='block';
 }
@@ -252,7 +355,7 @@ Object.assign(window, {
   enterAsOJT, openAdminLogin, closeAdminLogin, submitAdminLogin, signOut, navigate,
   loadAllData, lookupIntern, confirmCheckin, clearCheckin,
   openAddModal, closeAddModal, saveIntern, editIntern, deleteIntern, openProfile,
-  renderInternTable, renderLogTable, clearTodayLogs,
+  renderInternTable, renderLogTable, clearTodayLogs, previewInternPhoto,
   openAddTaskModal, closeAddTaskModal, saveTask, editTask, deleteTask, setTaskStatus,
   calShift, calGoToday, selectCalendarDay, renderDtrPreview, printDtr
 });

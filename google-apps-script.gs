@@ -17,7 +17,7 @@ const SHEETS = {
 };
 
 const HEADERS = {
-  Interns: ['id','name','school','birthdate','email','course','start','end','hours','notes'],
+  Interns: ['id','name','school','birthdate','email','course','start','end','hours','notes','photo'],
   Logs: ['id','internId','name','school','email','date','timestamp','status'],
   Tasks: ['id','title','desc','priority','status','assigned','date']
 };
@@ -35,8 +35,8 @@ function setup(){
 
   const interns = ss.getSheetByName(SHEETS.interns);
   interns.getRange(2,1,2,HEADERS.Interns.length).setValues([
-    ['INT-001','Maria Santos','University of the Philippines','2003-04-12','maria.santos@example.com','BS Computer Science','2026-06-01','2026-08-31','486',''],
-    ['INT-002','Jose Reyes','Ateneo de Davao University','2002-09-25','jose.reyes@example.com','BS Information Technology','2026-06-01','2026-08-31','486','']
+    ['INT-001','Maria Santos','University of the Philippines','2003-04-12','maria.santos@example.com','BS Computer Science','2026-06-01','2026-08-31','486','',''],
+    ['INT-002','Jose Reyes','Ateneo de Davao University','2002-09-25','jose.reyes@example.com','BS Information Technology','2026-06-01','2026-08-31','486','','']
   ]);
 
   const tasks = ss.getSheetByName(SHEETS.tasks);
@@ -137,8 +137,19 @@ function getOrCreateSheet_(sheetName){
 }
 
 function getHeaders_(sh){
-  const lastCol = Math.max(sh.getLastColumn(), 1);
-  return sh.getRange(1,1,1,lastCol).getDisplayValues()[0].filter(String);
+  const sheetName = sh.getName();
+  const expected = HEADERS[sheetName] || [];
+  let lastCol = Math.max(sh.getLastColumn(), 1);
+  let headers = sh.getRange(1,1,1,lastCol).getDisplayValues()[0].filter(String);
+
+  // Automatically add new columns such as 'photo' without deleting existing data.
+  expected.forEach(h => {
+    if(headers.indexOf(h) === -1){
+      headers.push(h);
+      sh.getRange(1, headers.length).setValue(h).setFontWeight('bold');
+    }
+  });
+  return headers;
 }
 
 function makeId(){
