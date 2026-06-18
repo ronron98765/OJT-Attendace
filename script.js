@@ -10,8 +10,6 @@ let currentRole = null;
 let foundIntern = null;
 let selectedProfileId = null;
 let calDate = new Date();
-let attendanceUploading = false;
-let attendanceUploadingType = null;
 
 const SIDEBAR_OJT = `
   <div class="nav-label">My Portal</div>
@@ -206,55 +204,6 @@ function lookupIntern(){
 function attendanceLabel(type){
   return ({morning_in:'Morning Time In',morning_out:'Morning Time Out',afternoon_in:'Afternoon Time In',afternoon_out:'Afternoon Time Out'})[type] || 'Attendance';
 }
-
-function attendanceButtonId(type){
-  return ({morning_in:'morningInBtn',morning_out:'morningOutBtn',afternoon_in:'afternoonInBtn',afternoon_out:'afternoonOutBtn'})[type] || '';
-}
-function getAttendanceButton(type){
-  const id = attendanceButtonId(type);
-  return id ? $(id) : null;
-}
-function setAttendanceButtonLoading(type, isLoading){
-  const btn = getAttendanceButton(type);
-  if(!btn) return;
-  if(isLoading){
-    btn.dataset.originalHtml = btn.dataset.originalHtml || btn.innerHTML;
-    btn.disabled = true;
-    btn.classList.add('is-loading');
-    btn.innerHTML = `<span class="spinner"></span> Uploading...`;
-  }else{
-    btn.classList.remove('is-loading');
-    btn.disabled = false;
-    btn.innerHTML = btn.dataset.originalHtml || btn.dataset.defaultLabel || attendanceLabel(type);
-    delete btn.dataset.originalHtml;
-  }
-}
-function markAttendanceButtonRecorded(type){
-  const btn = getAttendanceButton(type);
-  if(!btn) return;
-  btn.disabled = true;
-  btn.classList.remove('is-loading');
-  btn.innerHTML = `✓ ${attendanceLabel(type)} Recorded`;
-}
-function resetAttendanceButtons(){
-  ['morning_in','morning_out','afternoon_in','afternoon_out'].forEach(type => {
-    const btn = getAttendanceButton(type);
-    if(!btn) return;
-    btn.disabled = false;
-    btn.classList.remove('is-loading');
-    btn.innerHTML = btn.dataset.defaultLabel || attendanceLabel(type);
-  });
-}
-function updateAttendanceButtonsForDate(){
-  if(!foundIntern) return;
-  resetAttendanceButtons();
-  const entryDate = getEntryDate();
-  const todayLogs = logs.filter(l => l.internId === foundIntern.id && (l.date === entryDate || l.entryDate === entryDate));
-  ['morning_in','morning_out','afternoon_in','afternoon_out'].forEach(type => {
-    if(todayLogs.some(l => l.attendanceType === type)) markAttendanceButtonRecorded(type);
-  });
-}
-
 function getLocation(){
   return new Promise(resolve => {
     if(!navigator.geolocation){ resolve({latitude:'',longitude:'',accuracy:''}); return; }
@@ -273,83 +222,43 @@ function renderTodayAttendanceSummary(){
   box.innerHTML = types.map(type => {
     const log = todayLogs.find(l => l.attendanceType === type);
     const loc = log && log.latitude && log.longitude ? `<a href="https://www.google.com/maps?q=${log.latitude},${log.longitude}" target="_blank">View map</a>` : 'No location';
-    return `<div class="attendance-pill ${log ? 'recorded' : ''}"><strong>${attendanceLabel(type)}</strong><span>${log ? formatTime(log.timestamp) : 'Not yet'}</span><small>${log ? loc : ''}</small></div>`;
+    return `<div class="attendance-pill"><strong>${attendanceLabel(type)}</strong><span>${log ? formatTime(log.timestamp) : 'Not yet'}</span><small>${log ? loc : ''}</small></div>`;
   }).join('');
-  updateAttendanceButtonsForDate();
 }
 async function recordAttendance(type){
-  if(attendanceUploading){
-    showToast('Please wait. Attendance is still uploading.','error');
-    return;
-  }
   if(!foundIntern){ showToast('Enter your Intern ID first.','error'); return; }
   const entryDate = getEntryDate();
   if(!entryDate){ showToast('Please select an Entry Date first.','error'); return; }
-
   const duplicate = logs.find(l => l.internId === foundIntern.id && (l.date === entryDate || l.entryDate === entryDate) && l.attendanceType === type);
-  if(duplicate){
-    markAttendanceButtonRecorded(type);
-    showToast(attendanceLabel(type) + ' is already recorded for this date.','error');
-    return;
-  }
-
-  attendanceUploading = true;
-  attendanceUploadingType = type;
-  setAttendanceButtonLoading(type, true);
-
-  try{
-    showToast('Getting location and saving attendance...','success');
-    const loc = await getLocation();
-    const newLog = {
-      id: uid(),
-      internId: foundIntern.id,
-      name: foundIntern.name,
-      school: foundIntern.school,
-      email: foundIntern.email,
-      date: entryDate,
-      entryDate: entryDate,
-      timestamp: new Date().toISOString(),
-      status: 'present',
-      attendanceType: type,
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-      accuracy: loc.accuracy,
-      mapUrl: loc.latitude && loc.longitude ? `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}` : ''
-    };
-
-    const result = await api('addLog',{log:newLog});
-
-    if(result && result.duplicate){
-      const serverLog = result.log || newLog;
-      if(!logs.some(l => l.id === serverLog.id || (l.internId === serverLog.internId && (l.date === serverLog.date || l.entryDate === serverLog.entryDate) && l.attendanceType === serverLog.attendanceType))){
-        logs.push(serverLog);
-      }
-      markAttendanceButtonRecorded(type);
-      renderTodayAttendanceSummary();
-      showToast(attendanceLabel(type) + ' is already recorded for this date.','error');
-      return;
-    }
-
-    logs.push(newLog);
-    markAttendanceButtonRecorded(type);
-    showToast(attendanceLabel(type)+' saved for '+foundIntern.name,'success');
-    renderTodayAttendanceSummary();
-    renderCurrentPage();
-  }catch(err){
-    setAttendanceButtonLoading(type, false);
-    showToast(err.message,'error');
-  }finally{
-    attendanceUploading = false;
-    attendanceUploadingType = null;
-  }
+  if(duplicate && !confirm(attendanceLabel(type) + ' already exists today. Save another record?')) return;
+  showToast('Getting location and saving attendance...','success');
+  const loc = await getLocation();
+  const newLog = {id:uid(),internId:foundIntern.id,name:foundIntern.name,school:foundIntern.school,email:foundIntern.email,date:entryDate,entryDate:entryDate,timestamp:new Date().toISOString(),status:'present',attendanceType:type,latitude:loc.latitude,longitude:loc.longitude,accuracy:loc.accuracy,mapUrl:loc.latitude && loc.longitude ? `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}` : ''};
+  try{ await api('addLog',{log:newLog}); logs.push(newLog); showToast(attendanceLabel(type)+' saved for '+foundIntern.name,'success'); renderTodayAttendanceSummary(); renderCurrentPage(); }
+  catch(err){ showToast(err.message,'error'); }
 }
 async function confirmCheckin(){ return recordAttendance('morning_in'); }
-function clearCheckin(){ $('internIdInput').value=''; $('internCard').classList.remove('visible'); $('notFoundMsg').classList.remove('visible'); $('ojtTasksSection').style.display='none'; resetAttendanceButtons(); foundIntern=null; }
+function clearCheckin(){ $('internIdInput').value=''; $('internCard').classList.remove('visible'); $('notFoundMsg').classList.remove('visible'); $('ojtTasksSection').style.display='none'; foundIntern=null; }
+function parseTaskDateValue(value){
+  if(!value) return null;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+function isDoneTaskOlderThanOneDay(task){
+  if(String(task.status || '').toLowerCase() !== 'done') return false;
+  const completedDate = parseTaskDateValue(task.doneAt || task.updatedAt || task.date);
+  if(!completedDate) return false;
+  return (Date.now() - completedDate.getTime()) > (24 * 60 * 60 * 1000);
+}
 function renderOjtTasks(intern){
   const myName = String(intern.name).toLowerCase(), myId = String(intern.id).toLowerCase();
-  const myTasks = tasks.filter(t => { const a=String(t.assigned||'').toLowerCase(); return a==='all interns' || a.includes(myName) || a.includes(myId); });
+  const myTasks = tasks.filter(t => {
+    const a=String(t.assigned||'').toLowerCase();
+    const assignedToMe = a==='all interns' || a.includes(myName) || a.includes(myId);
+    return assignedToMe && !isDoneTaskOlderThanOneDay(t);
+  });
   $('ojtTodayLabel').textContent = formatDate(getEntryDate ? getEntryDate() : today()); const list=$('ojtTaskList');
-  if(!myTasks.length){ list.innerHTML='<div class="empty-state"><p>No tasks assigned to you yet.</p></div>'; return; }
+  if(!myTasks.length){ list.innerHTML='<div class="empty-state"><p>No active tasks assigned to you. Done tasks older than 1 day are shown only in the Activity Board.</p></div>'; return; }
   list.innerHTML = myTasks.map(t => taskItemHtml(t)).join('');
 }
 function taskItemHtml(t){
@@ -413,13 +322,25 @@ function openAddTaskModal(){ editingTaskId=null; $('taskModalTitle').textContent
 function closeAddTaskModal(){ $('addTaskModal').classList.remove('open'); }
 function editTask(id){ const t=tasks.find(x=>x.id===id); if(!t) return; editingTaskId=id; $('taskModalTitle').textContent='Edit Task'; $('tTitle').value=t.title||''; $('tDesc').value=t.desc||''; $('tPriority').value=t.priority||'normal'; $('tStatus').value=t.status||'todo'; $('tAssigned').value=t.assigned||''; $('tDate').value=t.date||today(); $('addTaskModal').classList.add('open'); }
 async function saveTask(){
-  const task={id:editingTaskId||uid(),title:$('tTitle').value.trim(),desc:$('tDesc').value.trim(),priority:$('tPriority').value,status:$('tStatus').value,assigned:$('tAssigned').value.trim()||'All Interns',date:$('tDate').value||today()};
+  const existingTask = tasks.find(t=>t.id===editingTaskId) || {};
+  const nowIso = new Date().toISOString();
+  const selectedStatus = $('tStatus').value;
+  const task={id:editingTaskId||uid(),title:$('tTitle').value.trim(),desc:$('tDesc').value.trim(),priority:$('tPriority').value,status:selectedStatus,assigned:$('tAssigned').value.trim()||'All Interns',date:$('tDate').value||today(),updatedAt:nowIso,doneAt:selectedStatus==='done' ? (existingTask.doneAt || nowIso) : ''};
   if(!task.title){ showToast('Task title is required.','error'); return; }
   try{ await api(editingTaskId?'updateTask':'addTask',{task}); const idx=tasks.findIndex(t=>t.id===task.id); if(idx>=0) tasks[idx]=task; else tasks.push(task); closeAddTaskModal(); renderCurrentPage(); showToast('Task saved','success'); }
   catch(err){ showToast(err.message,'error'); }
 }
 async function deleteTask(id){ if(!confirm('Delete this task?')) return; try{ await api('deleteTask',{id}); tasks=tasks.filter(t=>t.id!==id); renderTasks(); showToast('Task deleted','success'); }catch(err){ showToast(err.message,'error'); } }
-async function setTaskStatus(id,status){ const t=tasks.find(x=>x.id===id); if(!t) return; if(currentRole==='ojt' && !taskIsForIntern(t, foundIntern)){ showToast('You can only move tasks assigned to you.','error'); return; } t.status=status; try{ await api('updateTask',{task:t}); renderTasks(); showToast('Task updated','success'); }catch(err){ showToast(err.message,'error'); } }
+async function setTaskStatus(id,status){
+  const t=tasks.find(x=>x.id===id);
+  if(!t) return;
+  if(currentRole==='ojt' && !taskIsForIntern(t, foundIntern)){ showToast('You can only move tasks assigned to you.','error'); return; }
+  t.status=status;
+  t.updatedAt = new Date().toISOString();
+  if(status === 'done' && !t.doneAt) t.doneAt = t.updatedAt;
+  if(status !== 'done') t.doneAt = '';
+  try{ await api('updateTask',{task:t}); renderTasks(); if(foundIntern) renderOjtTasks(foundIntern); showToast('Task updated','success'); }catch(err){ showToast(err.message,'error'); }
+}
 function renderTasks(){
   const taskSource = visibleTasks();
   const addBtn = document.querySelector('#page-tasks .page-heading .btn-primary');
