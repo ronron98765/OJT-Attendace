@@ -1,5 +1,5 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbza0kc1vlBbJE0aYW6DUNtkfNLr6vi-KLAa_yJ8NhrKHfivNCc2h3cf-Yq68YQlR8aV/exec";
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_PASSWORD = 'apoo26jm';
 
 let interns = [];
 let logs = [];
