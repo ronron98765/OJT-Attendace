@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ABE OJT — Attendance System</title>
+  <title>InternTrack — Attendance System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
     <div class="gate-wrap">
       <div class="brand-center">
         <div class="logo-mark big">IT</div>
-        <span class="brand-large">ABE OJT</span>
+        <span class="brand-large">InternTrack</span>
       </div>
       <div class="gate-title">Welcome! Who are you?</div>
       <div class="gate-sub">Select your role to continue.</div>
@@ -62,7 +62,7 @@
       <div class="sidebar-brand">
         <div class="logo">
           <div class="logo-mark">IT</div>
-          <div><div class="brand-text">ABE OJT</div><div class="brand-sub">Attendance System</div></div>
+          <div><div class="brand-text">InternTrack</div><div class="brand-sub">Attendance System</div></div>
         </div>
       </div>
       <div class="sidebar-nav" id="sidebarNav"></div>
@@ -99,8 +99,8 @@
               <div class="intern-details">
                 <div><div class="detail-label">School</div><div class="detail-value" id="internSchool">—</div></div>
                 <div><div class="detail-label">Email</div><div class="detail-value email" id="internEmail">—</div></div>
-                <div><div class="detail-label">Check-In Time</div><div class="detail-value" id="internTime">—</div></div>
-                <div><div class="detail-label">Entry Date</div><div class="detail-value" id="internDate">—</div></div>
+                <div><div class="detail-label">Current Time</div><div class="detail-value" id="internTime">—</div></div>
+                <div><div class="detail-label">Entry Date</div><input type="date" class="form-input" id="entryDateInput" onchange="onEntryDateChange()" /></div>
               </div>
               <div class="attendance-actions">
                 <button class="btn btn-success" onclick="recordAttendance('morning_in')">Morning Time In</button>
@@ -156,7 +156,7 @@
           <div class="profile-header" id="profileHeader"></div>
           <div class="profile-grid" id="profileGrid"></div>
           <div class="two-col">
-            <div class="card"><div class="card-header"><div class="card-title">Attendance History</div><span class="badge badge-accent" id="profileAttCount">0 records</span></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody id="profileAttTable"></tbody></table></div></div>
+            <div class="card"><div class="card-header"><div class="card-title">Attendance History</div><span class="badge badge-accent" id="profileAttCount">0 records</span></div><div class="table-wrap"><table><thead><tr><th>Entry Date</th><th>Time Uploaded</th><th>Status</th></tr></thead><tbody id="profileAttTable"></tbody></table></div></div>
             <div class="card"><div class="card-header"><div class="card-title">Assigned Tasks</div><span class="badge badge-accent" id="profileTaskCount">0 tasks</span></div><div id="profileTaskList"></div></div>
           </div>
         </section>
@@ -165,7 +165,7 @@
           <div class="page-heading"><h2>Attendance Log</h2><button class="btn btn-outline btn-sm danger-text" onclick="clearTodayLogs()">Clear Today</button></div>
           <div class="card">
             <div class="log-filters"><input type="text" class="search-input" id="logSearch" placeholder="Search by name or school…" oninput="renderLogTable()" /><input type="date" class="form-input date-filter" id="logDate" onchange="renderLogTable()" /></div>
-            <div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Date</th><th>Time</th><th>Latitude</th><th>Longitude</th><th>Map</th></tr></thead><tbody id="logTable"></tbody></table></div>
+            <div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Entry Date</th><th>Time Uploaded</th><th>Latitude</th><th>Longitude</th><th>Map</th></tr></thead><tbody id="logTable"></tbody></table></div>
           </div>
         </section>
 
@@ -174,7 +174,7 @@
           <div class="card">
             <div class="card-header"><div class="card-title">Attendance Upload Locations</div><span class="badge badge-accent" id="mapCount">0 records</span></div>
             <div id="attendanceMap" class="map-box"></div>
-            <div class="table-wrap top-gap"><table><thead><tr><th>Name</th><th>Type</th><th>Date</th><th>Time</th><th>Location</th></tr></thead><tbody id="mapLogTable"></tbody></table></div>
+            <div class="table-wrap top-gap"><table><thead><tr><th>Name</th><th>Type</th><th>Entry Date</th><th>Time Uploaded</th><th>Location</th></tr></thead><tbody id="mapLogTable"></tbody></table></div>
           </div>
         </section>
 
@@ -199,7 +199,7 @@
             <div class="form-grid">
               <div class="form-group"><label class="form-label">Select Intern *</label><select class="form-select" id="dtrInternSelect" onchange="renderDtrPreview()"><option value="">— Select Intern —</option></select></div>
               <div class="form-group"><label class="form-label">Month & Year *</label><input type="month" class="form-input" id="dtrMonth" onchange="renderDtrPreview()" /></div>
-              <div class="form-group"><label class="form-label">OJT Coordinator</label><input type="text" class="form-input" id="dtrInCharge" value="JUN MIER C. SAWITAN" oninput="renderDtrPreview()" /></div>
+              <div class="form-group"><label class="form-label">In-Charge Name</label><input type="text" class="form-input" id="dtrInCharge" value="HON. JOETERRY A. UY" oninput="renderDtrPreview()" /></div>
               <div class="form-group"><label class="form-label">Official Arrival</label><input type="text" class="form-input" id="dtrOfficialArrival" value="8:00 AM" oninput="renderDtrPreview()" /></div>
               <div class="form-group"><label class="form-label">Official Departure</label><input type="text" class="form-input" id="dtrOfficialDepart" value="5:00 PM" oninput="renderDtrPreview()" /></div>
               <div class="form-group"><label class="form-label">Days Off</label><input type="text" class="form-input" id="dtrDaysOff" value="Saturdays" oninput="renderDtrPreview()" /></div>

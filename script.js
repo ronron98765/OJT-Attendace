@@ -33,6 +33,8 @@ const PAGE_TITLES = {checkin:'Check In & Tasks',dashboard:'Dashboard',interns:'I
 function $(id){ return document.getElementById(id); }
 function uid(){ return Math.random().toString(36).slice(2,11); }
 function today(){ return new Date().toISOString().slice(0,10); }
+function getEntryDate(){ const el = $('entryDateInput'); return (el && el.value) ? el.value : today(); }
+function onEntryDateChange(){ if(foundIntern){ $('internDate') && ($('internDate').textContent = formatDate(getEntryDate())); renderTodayAttendanceSummary(); renderOjtTasks(foundIntern); } }
 function escapeHtml(v){ return String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function avatarHtml(intern, cls='intern-avatar'){
   const name = String(intern?.name || 'I');
@@ -191,11 +193,11 @@ function lookupIntern(){
   if(!val) return;
   foundIntern = interns.find(i => String(i.id).toUpperCase() === val);
   if(!foundIntern){ $('notFoundMsg').classList.add('visible'); return; }
-  const now = new Date(), todayStr = today();
+  const now = new Date(); if($('entryDateInput') && !$('entryDateInput').value) $('entryDateInput').value = today(); const entryDate = getEntryDate();
   $('internAvatar').innerHTML = foundIntern.photo ? `<img src="${foundIntern.photo}" alt="${escapeHtml(foundIntern.name)} photo">` : escapeHtml(foundIntern.name.charAt(0).toUpperCase());
   $('internName').textContent = foundIntern.name; $('internIdDisplay').textContent = 'ID: ' + foundIntern.id;
   $('internSchool').textContent = foundIntern.school; $('internEmail').textContent = foundIntern.email;
-  $('internTime').textContent = formatTime(now.toISOString()); $('internDate').textContent = formatDate(todayStr);
+  $('internTime').textContent = formatTime(now.toISOString());
   renderTodayAttendanceSummary();
   $('internCard').classList.add('visible'); renderOjtTasks(foundIntern); $('ojtTasksSection').style.display='block';
 }
@@ -214,7 +216,8 @@ function getLocation(){
 }
 function renderTodayAttendanceSummary(){
   const box = $('todayAttendanceSummary'); if(!box || !foundIntern) return;
-  const todayLogs = logs.filter(l => l.internId === foundIntern.id && l.date === today());
+  const entryDate = getEntryDate();
+  const todayLogs = logs.filter(l => l.internId === foundIntern.id && (l.date === entryDate || l.entryDate === entryDate));
   const types = ['morning_in','morning_out','afternoon_in','afternoon_out'];
   box.innerHTML = types.map(type => {
     const log = todayLogs.find(l => l.attendanceType === type);
@@ -224,11 +227,13 @@ function renderTodayAttendanceSummary(){
 }
 async function recordAttendance(type){
   if(!foundIntern){ showToast('Enter your Intern ID first.','error'); return; }
-  const duplicate = logs.find(l => l.internId === foundIntern.id && l.date === today() && l.attendanceType === type);
+  const entryDate = getEntryDate();
+  if(!entryDate){ showToast('Please select an Entry Date first.','error'); return; }
+  const duplicate = logs.find(l => l.internId === foundIntern.id && (l.date === entryDate || l.entryDate === entryDate) && l.attendanceType === type);
   if(duplicate && !confirm(attendanceLabel(type) + ' already exists today. Save another record?')) return;
   showToast('Getting location and saving attendance...','success');
   const loc = await getLocation();
-  const newLog = {id:uid(),internId:foundIntern.id,name:foundIntern.name,school:foundIntern.school,email:foundIntern.email,date:today(),timestamp:new Date().toISOString(),status:'present',attendanceType:type,latitude:loc.latitude,longitude:loc.longitude,accuracy:loc.accuracy,mapUrl:loc.latitude && loc.longitude ? `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}` : ''};
+  const newLog = {id:uid(),internId:foundIntern.id,name:foundIntern.name,school:foundIntern.school,email:foundIntern.email,date:entryDate,entryDate:entryDate,timestamp:new Date().toISOString(),status:'present',attendanceType:type,latitude:loc.latitude,longitude:loc.longitude,accuracy:loc.accuracy,mapUrl:loc.latitude && loc.longitude ? `https://www.google.com/maps?q=${loc.latitude},${loc.longitude}` : ''};
   try{ await api('addLog',{log:newLog}); logs.push(newLog); showToast(attendanceLabel(type)+' saved for '+foundIntern.name,'success'); renderTodayAttendanceSummary(); renderCurrentPage(); }
   catch(err){ showToast(err.message,'error'); }
 }
@@ -237,7 +242,7 @@ function clearCheckin(){ $('internIdInput').value=''; $('internCard').classList.
 function renderOjtTasks(intern){
   const myName = String(intern.name).toLowerCase(), myId = String(intern.id).toLowerCase();
   const myTasks = tasks.filter(t => { const a=String(t.assigned||'').toLowerCase(); return a==='all interns' || a.includes(myName) || a.includes(myId); });
-  $('ojtTodayLabel').textContent = formatDate(today()); const list=$('ojtTaskList');
+  $('ojtTodayLabel').textContent = formatDate(getEntryDate ? getEntryDate() : today()); const list=$('ojtTaskList');
   if(!myTasks.length){ list.innerHTML='<div class="empty-state"><p>No tasks assigned to you yet.</p></div>'; return; }
   list.innerHTML = myTasks.map(t => taskItemHtml(t)).join('');
 }
@@ -292,8 +297,9 @@ function renderLogTable(){
   $('logTable').innerHTML = rows.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(l=>`<tr><td>${escapeHtml(l.internId)}</td><td class="td-name">${escapeHtml(l.name)}</td><td>${attendanceLabel(l.attendanceType)}</td><td>${formatDate(l.date)}</td><td>${formatTime(l.timestamp)}</td><td>${escapeHtml(l.latitude||'')}</td><td>${escapeHtml(l.longitude||'')}</td><td>${l.latitude&&l.longitude?`<a target="_blank" href="https://www.google.com/maps?q=${l.latitude},${l.longitude}">Map</a>`:'—'}</td></tr>`).join('') || `<tr><td colspan="8" class="td-muted">No logs found.</td></tr>`;
 }
 async function clearTodayLogs(){
-  if(!confirm('Clear all check-ins for today?')) return;
-  try{ await api('clearTodayLogs',{date:today()}); logs=logs.filter(l=>l.date!==today()); renderCurrentPage(); showToast('Today logs cleared','success'); }
+  const d = $('logDate') && $('logDate').value ? $('logDate').value : today();
+  if(!confirm('Clear all check-ins for ' + formatDate(d) + '?')) return;
+  try{ await api('clearTodayLogs',{date:d}); logs=logs.filter(l=>l.date!==d); renderCurrentPage(); showToast('Today logs cleared','success'); }
   catch(err){ showToast(err.message,'error'); }
 }
 
@@ -424,7 +430,7 @@ function showToast(msg,type='success'){ const t=$('toast'); $('toastMsg').textCo
 // Make functions available to HTML onclick handlers
 Object.assign(window, {
   enterAsOJT, openAdminLogin, closeAdminLogin, submitAdminLogin, signOut, navigate,
-  loadAllData, lookupIntern, confirmCheckin, recordAttendance, clearCheckin,
+  loadAllData, lookupIntern, confirmCheckin, recordAttendance, clearCheckin, onEntryDateChange,
   openAddModal, closeAddModal, saveIntern, editIntern, deleteIntern, openProfile,
   renderInternTable, renderLogTable, clearTodayLogs, previewInternPhoto,
   openAddTaskModal, closeAddTaskModal, saveTask, editTask, deleteTask, setTaskStatus,
