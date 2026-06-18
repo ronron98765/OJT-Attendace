@@ -23,3 +23,35 @@
 .map-box{height:430px;border-radius:12px;overflow:hidden;border:1px solid var(--border-solid);background:var(--surface2)}
 .top-gap{margin-top:16px}
 @media(max-width:700px){.attendance-actions,.attendance-summary{grid-template-columns:1fr}.map-box{height:330px}}
+
+
+/* Attendance upload loading state */
+.attendance-btn.is-loading,
+.btn.is-loading{
+  opacity:.85;
+  cursor:wait;
+  pointer-events:none;
+}
+.btn:disabled{
+  opacity:.65;
+  cursor:not-allowed;
+  transform:none!important;
+}
+.spinner{
+  width:15px;
+  height:15px;
+  border:2px solid rgba(255,255,255,.35);
+  border-top-color:#fff;
+  border-radius:50%;
+  display:inline-block;
+  animation:spin .8s linear infinite;
+  flex-shrink:0;
+}
+.btn-outline .spinner{
+  border-color:rgba(143,163,192,.35);
+  border-top-color:var(--accent-light);
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.attendance-pill.recorded{
+  border-color:rgba(16,185,129,.35)!important;
+}

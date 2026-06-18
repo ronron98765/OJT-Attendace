@@ -103,10 +103,10 @@
                 <div><div class="detail-label">Entry Date</div><input type="date" class="form-input" id="entryDateInput" onchange="onEntryDateChange()" /></div>
               </div>
               <div class="attendance-actions">
-                <button class="btn btn-success" onclick="recordAttendance('morning_in')">Morning Time In</button>
-                <button class="btn btn-outline" onclick="recordAttendance('morning_out')">Morning Time Out</button>
-                <button class="btn btn-success" onclick="recordAttendance('afternoon_in')">Afternoon Time In</button>
-                <button class="btn btn-outline" onclick="recordAttendance('afternoon_out')">Afternoon Time Out</button>
+                <button id="morningInBtn" class="btn btn-success attendance-btn" data-default-label="Morning Time In" onclick="recordAttendance('morning_in')">Morning Time In</button>
+                <button id="morningOutBtn" class="btn btn-outline attendance-btn" data-default-label="Morning Time Out" onclick="recordAttendance('morning_out')">Morning Time Out</button>
+                <button id="afternoonInBtn" class="btn btn-success attendance-btn" data-default-label="Afternoon Time In" onclick="recordAttendance('afternoon_in')">Afternoon Time In</button>
+                <button id="afternoonOutBtn" class="btn btn-outline attendance-btn" data-default-label="Afternoon Time Out" onclick="recordAttendance('afternoon_out')">Afternoon Time Out</button>
                 <button class="btn btn-outline" onclick="clearCheckin()">Cancel</button>
               </div>
               <div id="todayAttendanceSummary" class="attendance-summary"></div>
